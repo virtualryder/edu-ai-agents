@@ -1,0 +1,638 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  EDU AI Agent Suite — Demo-in-a-Box
+  Single-stack deployment of Agent 01 (Student & Family Services Concierge)
+  running in EXTRACT_MODE=demo. No live SIS connection. No real student data.
+  Deterministic fixture responses. Deploy in ~15 minutes for POC workshops.
+
+  What gets deployed:
+    - VPC with 2 public subnets across 2 AZs
+    - Application Load Balancer (HTTP or HTTPS)
+    - ECS Fargate task running the Agent 01 demo container
+    - DynamoDB table for the demo audit trail (retained on stack deletion)
+    - S3 bucket for demo knowledge base content
+    - Secrets Manager secret for the demo API key
+    - IAM roles with least-privilege policies
+    - CloudWatch log group
+
+  Prerequisites:
+    - AWS account with Bedrock access (Claude 3.5 Sonnet or Haiku in the target region)
+    - OR set EXTRACT_MODE=demo to bypass Bedrock entirely (recommended for POC)
+    - Container image pushed to ECR (or use the placeholder and update after stack creation)
+
+# ---------------------------------------------------------------------------
+# Metadata
+# ---------------------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Demo Identity
+        Parameters:
+          - DemoInstanceName
+          - Environment
+      - Label:
+          default: Container Configuration
+        Parameters:
+          - ContainerImageURI
+          - ContainerPort
+          - TaskCpu
+          - TaskMemory
+      - Label:
+          default: API Key (stored in Secrets Manager, never logged)
+        Parameters:
+          - BedrockApiKey
+      - Label:
+          default: Network and Access
+        Parameters:
+          - EnableHTTPS
+          - CertificateArn
+    ParameterLabels:
+      DemoInstanceName:
+        default: Demo instance name (used in resource naming)
+      ContainerImageURI:
+        default: ECR image URI for Agent 01 demo container
+      BedrockApiKey:
+        default: Anthropic/Bedrock API key (NoEcho)
+      EnableHTTPS:
+        default: Enable HTTPS on the load balancer?
+      CertificateArn:
+        default: ACM certificate ARN (required if EnableHTTPS = true)
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+
+  DemoInstanceName:
+    Type: String
+    Default: edu-ai-demo
+    Description: Short name used to prefix all resource names. Use lowercase alphanumeric and hyphens only.
+    AllowedPattern: '[a-z0-9\-]+'
+    ConstraintDescription: Lowercase alphanumeric and hyphens only.
+
+  Environment:
+    Type: String
+    Default: demo
+    AllowedValues: [demo, poc, dev]
+    Description: Deployment environment tag. Use 'demo' for POC workshops.
+
+  ContainerImageURI:
+    Type: String
+    Default: "123456789012.dkr.ecr.us-east-1.amazonaws.com/edu-ai-agents/concierge:demo"
+    Description: >
+      Full ECR URI for the Agent 01 demo container image.
+      Format: <account>.dkr.ecr.<region>.amazonaws.com/<repo>:<tag>
+      Update this after pushing your image to ECR.
+
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: Port the container listens on.
+
+  TaskCpu:
+    Type: Number
+    Default: 512
+    AllowedValues: [256, 512, 1024, 2048]
+    Description: Fargate task CPU units (256 = 0.25 vCPU). 512 is sufficient for demos.
+
+  TaskMemory:
+    Type: Number
+    Default: 1024
+    AllowedValues: [512, 1024, 2048, 4096]
+    Description: Fargate task memory in MB.
+
+  BedrockApiKey:
+    Type: String
+    NoEcho: true
+    Default: "DEMO_MODE_NO_KEY_NEEDED"
+    Description: >
+      Anthropic or Bedrock API key. In EXTRACT_MODE=demo this is not used for inference
+      but is stored in Secrets Manager for the production-readiness pattern.
+      Use the default value for pure demo deployments.
+
+  EnableHTTPS:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Set to true to enable HTTPS on the ALB. Requires an ACM certificate ARN.
+      For workshop demos, HTTP is typically sufficient.
+
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: >
+      ACM certificate ARN. Required only if EnableHTTPS = true.
+      Leave empty for HTTP-only deployments.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  UseHTTPS: !Equals [!Ref EnableHTTPS, "true"]
+  UseHTTP:  !Not [!Equals [!Ref EnableHTTPS, "true"]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # ---- Networking ----------------------------------------------------------
+
+  DemoVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-vpc"
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AgentID
+          Value: "01-concierge"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-igw"
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref DemoVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DemoVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-public-1"
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DemoVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-public-2"
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref DemoVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-public-rt"
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1RouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Subnet2RouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # ---- Security Groups -----------------------------------------------------
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP/HTTPS inbound to the demo ALB
+      VpcId: !Ref DemoVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP from anywhere (demo only — restrict for production)
+        - !If
+          - UseHTTPS
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+            Description: HTTPS from anywhere
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-alb-sg"
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound from ALB only
+      VpcId: !Ref DemoVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerPort
+          ToPort: !Ref ContainerPort
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          Description: Inbound from ALB on container port
+      Tags:
+        - Key: Name
+          Value: !Sub "${DemoInstanceName}-task-sg"
+
+  # ---- Load Balancer -------------------------------------------------------
+
+  DemoALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${DemoInstanceName}-alb"
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  DemoTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${DemoInstanceName}-tg"
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref DemoVPC
+      HealthCheckPath: /ping
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+
+  HTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseHTTP
+    Properties:
+      LoadBalancerArn: !Ref DemoALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DemoTargetGroup
+
+  HTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseHTTPS
+    Properties:
+      LoadBalancerArn: !Ref DemoALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DemoTargetGroup
+
+  HTTPRedirectListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseHTTPS
+    Properties:
+      LoadBalancerArn: !Ref DemoALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: "443"
+            StatusCode: HTTP_301
+
+  # ---- Secrets Manager -----------------------------------------------------
+
+  DemoApiKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/${DemoInstanceName}/api-key"
+      Description: !Sub "Demo API key for ${DemoInstanceName}. Not used in EXTRACT_MODE=demo."
+      SecretString: !Sub '{"api_key": "${BedrockApiKey}"}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AgentID
+          Value: "01-concierge"
+
+  # ---- S3 Demo Knowledge Base Bucket ---------------------------------------
+
+  DemoKnowledgeBaseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${DemoInstanceName}-kb-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AgentID
+          Value: "01-concierge"
+
+  # ---- DynamoDB Demo Audit Trail -------------------------------------------
+
+  DemoAuditTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain   # Retain audit logs even if the demo stack is deleted
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "${DemoInstanceName}-audit-trail"
+      BillingMode: PAY_PER_REQUEST
+      TableClass: STANDARD
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AgentID
+          Value: "01-concierge"
+        - Key: RetentionPolicy
+          Value: RETAIN_ON_STACK_DELETE
+
+  # ---- CloudWatch Log Group ------------------------------------------------
+
+  DemoLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${DemoInstanceName}/concierge"
+      RetentionInDays: 30
+
+  # ---- IAM Roles -----------------------------------------------------------
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${DemoInstanceName}-ecs-execution-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DemoApiKeySecret
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${DemoInstanceName}-ecs-task-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DemoTaskPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # DynamoDB audit trail — write-only (append-only)
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource: !GetAtt DemoAuditTable.Arn
+              # S3 knowledge base — read-only
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt DemoKnowledgeBaseBucket.Arn
+                  - !Sub "${DemoKnowledgeBaseBucket.Arn}/*"
+              # CloudWatch logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt DemoLogGroup.Arn
+              # Secrets Manager — read only the demo secret
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DemoApiKeySecret
+              # Bedrock — only the models used in demo (EXTRACT_MODE=demo bypasses this)
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+                  - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+
+  # ---- ECS Cluster and Service ---------------------------------------------
+
+  DemoECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${DemoInstanceName}-cluster"
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  DemoTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${DemoInstanceName}-concierge"
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: concierge
+          Image: !Ref ContainerImageURI
+          Essential: true
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          Environment:
+            - Name: EXTRACT_MODE
+              Value: demo
+            - Name: AGENT_ID
+              Value: "01-concierge"
+            - Name: LOG_LEVEL
+              Value: INFO
+            - Name: DEMO_INSTANCE_NAME
+              Value: !Ref DemoInstanceName
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: AUDIT_TABLE_NAME
+              Value: !Ref DemoAuditTable
+            - Name: KB_BUCKET_NAME
+              Value: !Ref DemoKnowledgeBaseBucket
+          Secrets:
+            - Name: API_KEY
+              ValueFrom: !Sub "${DemoApiKeySecret}:api_key::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref DemoLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: concierge
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - !Sub "curl -f http://localhost:${ContainerPort}/ping || exit 1"
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+          ReadonlyRootFilesystem: false
+          LinuxParameters:
+            InitProcessEnabled: true
+
+  DemoECSService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - HTTPListener
+    Properties:
+      ServiceName: !Sub "${DemoInstanceName}-concierge-svc"
+      Cluster: !Ref DemoECSCluster
+      TaskDefinition: !Ref DemoTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          SecurityGroups:
+            - !Ref TaskSecurityGroup
+      LoadBalancers:
+        - ContainerName: concierge
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref DemoTargetGroup
+      EnableExecuteCommand: true   # Enables ECS Exec for live debugging during demos
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+
+  LoadBalancerURL:
+    Description: >
+      Demo application URL. Open this in a browser after the ECS service is healthy
+      (typically 3-5 minutes after stack creation completes).
+    Value: !If
+      - UseHTTPS
+      - !Sub "https://${DemoALB.DNSName}"
+      - !Sub "http://${DemoALB.DNSName}"
+    Export:
+      Name: !Sub "${DemoInstanceName}-url"
+
+  DemoAuditTrailTableName:
+    Description: >
+      DynamoDB table name for the demo audit trail. Query this during the demo
+      to show the FERPA-aligned audit log. Table is RETAINED on stack deletion.
+    Value: !Ref DemoAuditTable
+    Export:
+      Name: !Sub "${DemoInstanceName}-audit-table"
+
+  CloudWatchLogGroupName:
+    Description: CloudWatch log group for the demo Fargate task.
+    Value: !Ref DemoLogGroup
+    Export:
+      Name: !Sub "${DemoInstanceName}-log-group"
+
+  KnowledgeBaseBucketName:
+    Description: S3 bucket for demo knowledge base content. Upload fixture KB files here.
+    Value: !Ref DemoKnowledgeBaseBucket
+    Export:
+      Name: !Sub "${DemoInstanceName}-kb-bucket"
+
+  ApiKeySecretArn:
+    Description: Secrets Manager ARN for the demo API key.
+    Value: !Ref DemoApiKeySecret
+    Export:
+      Name: !Sub "${DemoInstanceName}-api-key-secret"
+
+  ECSClusterName:
+    Description: ECS cluster name (for ECS Exec and monitoring during demos).
+    Value: !Ref DemoECSCluster
+
+  DemoDeploymentGuide:
+    Description: >
+      Quick start: (1) Push the Agent 01 demo container to ECR and update ContainerImageURI.
+      (2) Deploy this stack: aws cloudformation deploy --template-file demo-in-a-box.yaml
+      --stack-name edu-ai-demo --parameter-overrides DemoInstanceName=edu-ai-demo
+      ContainerImageURI=<your-ecr-uri> --capabilities CAPABILITY_NAMED_IAM.
+      (3) Wait ~5 minutes for the ECS service to become healthy.
+      (4) Open the LoadBalancerURL output in a browser.
+      (5) For the governance demo, query the DemoAuditTrailTableName in DynamoDB console
+      to show the PII-masked audit log in real time.
+      Full demo script: gtm/DEMO-STORYBOARD.md
+    Value: "See gtm/DEMO-STORYBOARD.md for the full demo script and governance talking points."
