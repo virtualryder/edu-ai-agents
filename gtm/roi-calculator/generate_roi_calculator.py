@@ -615,7 +615,7 @@ def main():
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "EDU-AI-Suite-ROI-Calculator.xlsx")
     wb.save(out_path)
-    print(f"✓  ROI calculator written to: {out_path}")
+    print(f"OK ROI calculator written to: {out_path}")
     print("   Open the file and start on the 'Instructions' tab.")
     print("   Green cells are inputs. Blue cells are calculated. Orange cells are assumptions.")
 
