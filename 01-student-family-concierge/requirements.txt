@@ -1,0 +1,14 @@
+# Student & Family Services Concierge — runtime dependencies
+langgraph>=0.2.0
+langchain-core>=0.3.0
+streamlit>=1.36.0
+
+# LLM providers (install the one you use)
+langchain-anthropic>=0.2.0    # LLM_PROVIDER=anthropic (default)
+# langchain-aws>=0.2.0        # LLM_PROVIDER=bedrock (in-account inference + Guardrails)
+
+# Shared platform (installed from ../platform_core in dev: pip install -e ../platform_core)
+# edu-agent-platform
+
+# Dev / test
+pytest>=8.0.0

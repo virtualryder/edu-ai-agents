@@ -1,0 +1,372 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Per-agent runtime stack (Layer 2).
+  REFERENCE / ACCELERATOR TEMPLATE. Provisions one agent's runtime, gated by
+  the DeployMode parameter:
+
+    native    -> AWS Step Functions state machine implementing the specialist
+                 pattern (Intake -> Retrieve -> Draft/Analyze -> Policy gate ->
+                 Routing -> HITL gate -> Finalize) plus the supporting Lambdas.
+                 The HITL gate is a waitForTaskToken state that suspends until a
+                 verified reviewer identity is bound into the HITL queue record.
+
+    container -> AgentCore Runtime container registration (ARM64, /invocations +
+                 /ping, port 8080). AgentCore Runtime resource types are not yet
+                 fully expressible in plain CloudFormation; this path records the
+                 container contract / image config in SSM and (optionally) calls
+                 a customer-supplied custom-resource Lambda to register the
+                 runtime. See the labeled note below.
+
+  The bright line holds on both paths: no route from intake to finalize bypasses
+  the HITL gate for a consequential action (grades, admissions, discipline,
+  financial aid, special-ed eligibility, placement).
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+
+  AgentId:
+    Type: String
+    Default: "01-concierge"
+    Description: >
+      Agent identifier (e.g. 01-concierge, 03-educator-copilot, 05-student-success).
+      One stack instance per agent.
+
+  DeployMode:
+    Type: String
+    Default: native
+    AllowedValues: [native, container]
+    Description: native = Step Functions + Lambda; container = AgentCore Runtime container.
+
+  AgentExecutionRoleArn:
+    Type: String
+    Description: Least-privilege agent execution role ARN (from security stack).
+
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket holding packaged Lambda deployment artifacts.
+
+  LambdaCodeKeyPrefix:
+    Type: String
+    Default: "lambdas"
+    Description: Key prefix within LambdaCodeBucket for this agent's Lambda zips.
+
+  ContainerImageUri:
+    Type: String
+    Default: ""
+    Description: >
+      ECR image URI for the AgentCore Runtime container (ARM64). Required when
+      DeployMode = container.
+
+  PrivateSubnetIds:
+    Type: CommaDelimitedList
+    Description: Private subnet IDs for Lambda ENIs (from network stack).
+
+  AgentSecurityGroupId:
+    Type: String
+    Description: Agent runtime security group ID (from network stack).
+
+  AuditTableName:
+    Type: String
+    Description: Append-only audit table name (from data stack).
+
+  HitlQueueTableName:
+    Type: String
+    Description: HITL approval-queue table name (from data stack).
+
+  GuardrailId:
+    Type: String
+    Description: Bedrock Guardrail ID (from security stack), applied on LLM calls.
+
+  RuntimeCustomResourceServiceToken:
+    Type: String
+    Default: ""
+    Description: >
+      Service token (Lambda ARN) for the AgentCore Runtime registration custom
+      resource the customer supplies (container path). When blank, the container
+      path records the contract in SSM only.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  IsNative: !Equals [!Ref DeployMode, native]
+  IsContainer: !Equals [!Ref DeployMode, container]
+  HasRuntimeProvisioner: !And
+    - !Condition IsContainer
+    - !Not [!Equals [!Ref RuntimeCustomResourceServiceToken, ""]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # =========================================================================
+  # NATIVE PATH - Step Functions + Lambda (Strands + deterministic core)
+  # =========================================================================
+
+  # Intake / retrieval / draft Lambda (calls Bedrock with the Guardrail, all
+  # SoR access brokered via the Layer 3 gateway; PII masked before prompt/audit).
+  AgentCoreLambda:
+    Type: AWS::Lambda::Function
+    Condition: IsNative
+    Properties:
+      FunctionName: !Sub "edu-agents-${Environment}-${AgentId}-core"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: handler.lambda_handler
+      Timeout: 120
+      MemorySize: 1024
+      Role: !Ref AgentExecutionRoleArn
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodeKeyPrefix}/${AgentId}/core.zip"
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds: [!Ref AgentSecurityGroupId]
+      Environment:
+        Variables:
+          AGENT_ID: !Ref AgentId
+          ENVIRONMENT: !Ref Environment
+          AUDIT_TABLE: !Ref AuditTableName
+          HITL_TABLE: !Ref HitlQueueTableName
+          GUARDRAIL_ID: !Ref GuardrailId
+
+  # Policy & compliance gate Lambda (grounding check + bright-line classification:
+  # is the routed action clean, revisable-once, or consequential/prohibited?).
+  PolicyGateLambda:
+    Type: AWS::Lambda::Function
+    Condition: IsNative
+    Properties:
+      FunctionName: !Sub "edu-agents-${Environment}-${AgentId}-policy-gate"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: handler.lambda_handler
+      Timeout: 60
+      MemorySize: 512
+      Role: !Ref AgentExecutionRoleArn
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodeKeyPrefix}/${AgentId}/policy_gate.zip"
+      Environment:
+        Variables:
+          AGENT_ID: !Ref AgentId
+          AUDIT_TABLE: !Ref AuditTableName
+
+  # Enqueues a PENDING approval into the HITL table, carrying the task token so
+  # the reviewer's approval can resume the state machine. Writes PENDING_APPROVAL
+  # to the audit trail.
+  HitlEnqueueLambda:
+    Type: AWS::Lambda::Function
+    Condition: IsNative
+    Properties:
+      FunctionName: !Sub "edu-agents-${Environment}-${AgentId}-hitl-enqueue"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: handler.lambda_handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !Ref AgentExecutionRoleArn
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodeKeyPrefix}/${AgentId}/hitl_enqueue.zip"
+      Environment:
+        Variables:
+          HITL_TABLE: !Ref HitlQueueTableName
+          AUDIT_TABLE: !Ref AuditTableName
+
+  # Finalize Lambda - only reached after a verified approval resumes the gate.
+  # Mints the scoped write token and performs the gateway-brokered action.
+  FinalizeLambda:
+    Type: AWS::Lambda::Function
+    Condition: IsNative
+    Properties:
+      FunctionName: !Sub "edu-agents-${Environment}-${AgentId}-finalize"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: handler.lambda_handler
+      Timeout: 90
+      MemorySize: 512
+      Role: !Ref AgentExecutionRoleArn
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodeKeyPrefix}/${AgentId}/finalize.zip"
+      Environment:
+        Variables:
+          AGENT_ID: !Ref AgentId
+          AUDIT_TABLE: !Ref AuditTableName
+
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Condition: IsNative
+    Properties:
+      RoleName: !Sub "edu-agents-${Environment}-${AgentId}-sfn-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeAgentLambdas
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AgentCoreLambda.Arn
+                  - !GetAtt PolicyGateLambda.Arn
+                  - !GetAtt HitlEnqueueLambda.Arn
+                  - !GetAtt FinalizeLambda.Arn
+
+  # The specialist agent state machine. The HITL gate is the waitForTaskToken
+  # state: it suspends the execution and resumes only when SendTaskSuccess is
+  # called with a verified reviewer approval (or SendTaskFailure on rejection /
+  # token expiry). There is no path to Finalize that skips this gate for a
+  # consequential action.
+  AgentStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Condition: IsNative
+    Properties:
+      StateMachineName: !Sub "edu-agents-${Environment}-${AgentId}"
+      RoleArn: !GetAtt StateMachineRole.Arn
+      DefinitionSubstitutions:
+        CoreArn: !GetAtt AgentCoreLambda.Arn
+        PolicyGateArn: !GetAtt PolicyGateLambda.Arn
+        HitlEnqueueArn: !GetAtt HitlEnqueueLambda.Arn
+        FinalizeArn: !GetAtt FinalizeLambda.Arn
+      DefinitionString: |
+        {
+          "Comment": "EDU specialist agent - native path with waitForTaskToken HITL gate",
+          "StartAt": "IntakeRetrieveDraft",
+          "States": {
+            "IntakeRetrieveDraft": {
+              "Type": "Task",
+              "Resource": "${CoreArn}",
+              "Comment": "Intake, gateway-brokered retrieval, Bedrock draft/analyze (Guardrail applied, PII masked)",
+              "Next": "PolicyComplianceGate"
+            },
+            "PolicyComplianceGate": {
+              "Type": "Task",
+              "Resource": "${PolicyGateArn}",
+              "Comment": "Grounding + bright-line classification",
+              "Next": "Routing"
+            },
+            "Routing": {
+              "Type": "Choice",
+              "Comment": "clean -> HITL gate; revise -> one bounded revision; prohibited -> escalate",
+              "Choices": [
+                {
+                  "Variable": "$.routing.decision",
+                  "StringEquals": "REVISE",
+                  "Next": "IntakeRetrieveDraft"
+                },
+                {
+                  "Variable": "$.routing.decision",
+                  "StringEquals": "PROHIBITED",
+                  "Next": "Escalate"
+                }
+              ],
+              "Default": "HitlApprovalGate"
+            },
+            "HitlApprovalGate": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Comment": "Suspend until a verified reviewer approves; binds reviewer identity into the record before resume",
+              "TimeoutSeconds": 259200,
+              "Parameters": {
+                "FunctionName": "${HitlEnqueueArn}",
+                "Payload": {
+                  "taskToken.$": "$$.Task.Token",
+                  "draft.$": "$.draft",
+                  "compliance.$": "$.compliance",
+                  "requester.$": "$.requester"
+                }
+              },
+              "Next": "Finalize",
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.Timeout"],
+                  "Comment": "Approval not received within SLA - fail closed",
+                  "Next": "Escalate"
+                },
+                {
+                  "ErrorEquals": ["ApprovalRejected"],
+                  "Next": "Escalate"
+                }
+              ]
+            },
+            "Finalize": {
+              "Type": "Task",
+              "Resource": "${FinalizeArn}",
+              "Comment": "Reached only after verified approval - mints scoped token, performs gateway-brokered action, writes ALLOW audit",
+              "End": true
+            },
+            "Escalate": {
+              "Type": "Succeed",
+              "Comment": "Routed to a human for handling; no autonomous consequential action taken"
+            }
+          }
+        }
+
+  # =========================================================================
+  # CONTAINER PATH - AgentCore Runtime registration (ARM64, /invocations + /ping)
+  # =========================================================================
+  #
+  # NOTE: Amazon Bedrock AgentCore Runtime resource types are not yet fully
+  # expressible in plain CloudFormation. This path captures the container
+  # contract in SSM and, when a registration custom-resource Lambda is supplied,
+  # registers the runtime via the AgentCore control-plane APIs. The container
+  # MUST implement the contract: ARM64 image, HTTP server on port 8080,
+  # POST /invocations (stateless; request carries forwarded IdP claims + role +
+  # task context) and GET /ping (health). See aws-native-reference/README.md.
+
+  ContainerContractParam:
+    Type: AWS::SSM::Parameter
+    Condition: IsContainer
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/runtime/${AgentId}"
+      Type: String
+      Value: !Sub
+        - '{"agentId":"${AgentId}","mode":"container","image":"${Img}","arch":"arm64","port":8080,"invokePath":"/invocations","healthPath":"/ping","roleArn":"${RoleArn}","guardrailId":"${Gid}"}'
+        - Img: !Ref ContainerImageUri
+          RoleArn: !Ref AgentExecutionRoleArn
+          Gid: !Ref GuardrailId
+      Description: "AgentCore Runtime container contract for this agent."
+
+  AgentCoreRuntimeRegistration:
+    Type: AWS::CloudFormation::CustomResource
+    Condition: HasRuntimeProvisioner
+    Properties:
+      ServiceToken: !Ref RuntimeCustomResourceServiceToken
+      Action: RegisterRuntime
+      AgentId: !Ref AgentId
+      Environment: !Ref Environment
+      ContainerImageUri: !Ref ContainerImageUri
+      ExecutionRoleArn: !Ref AgentExecutionRoleArn
+      GuardrailId: !Ref GuardrailId
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  DeployModeUsed:
+    Description: Runtime path provisioned for this agent.
+    Value: !Ref DeployMode
+
+  StateMachineArn:
+    Condition: IsNative
+    Description: Step Functions state machine ARN (native path, includes the HITL gate).
+    Value: !Ref AgentStateMachine
+
+  ContainerContractParamName:
+    Condition: IsContainer
+    Description: SSM parameter holding the AgentCore Runtime container contract.
+    Value: !Ref ContainerContractParam

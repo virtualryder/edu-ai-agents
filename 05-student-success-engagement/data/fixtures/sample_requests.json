@@ -1,0 +1,28 @@
+[
+  {
+    "request_id": "REQ-SSE-001",
+    "channel": "sis",
+    "student_ref": "STU-demo0001",
+    "trigger_event": "absences",
+    "action_request": {"type": "create_advising_case", "payload": {"topic": "attendance check-in"}},
+    "acting_user_claims": {"sub": "cnsl-0001", "custom:edu_role": "COUNSELOR"},
+    "description": "Attendance-trigger case: assemble evidence and open a low-risk advising case."
+  },
+  {
+    "request_id": "REQ-SSE-002",
+    "channel": "lms",
+    "student_ref": "STU-demo0002",
+    "trigger_event": "disengagement",
+    "action_request": {"type": "send_message", "payload": {"to": "student", "topic": "wellness check-in"}},
+    "acting_user_claims": {"sub": "cnsl-0001", "custom:edu_role": "COUNSELOR"},
+    "description": "Disengagement case with a send_message action (consequential; no approval -> not sent)."
+  },
+  {
+    "request_id": "REQ-SSE-003",
+    "channel": "sis",
+    "student_ref": "STU-demo0003",
+    "trigger_event": "deadline",
+    "acting_user_claims": {"sub": "cnsl-0001", "custom:edu_role": "COUNSELOR"},
+    "description": "Deadline reminder: assemble evidence and draft a supportive outreach for review."
+  }
+]

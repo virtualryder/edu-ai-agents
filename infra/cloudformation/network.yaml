@@ -1,0 +1,307 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Network stack (Layer foundation).
+  REFERENCE / ACCELERATOR TEMPLATE. The customer must review, harden, and
+  validate this against their own network standards before production use.
+  Provisions an isolated VPC with public/private subnets across two AZs, a NAT
+  gateway for egress, security groups, and a Bedrock VPC interface endpoint so
+  in-account inference never traverses the public internet. No public inbound
+  path to the agent runtime exists by design.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+    Description: Deployment environment. Drives resource naming and tagging.
+
+  VpcCidr:
+    Type: String
+    Default: 10.40.0.0/16
+    Description: CIDR block for the agent suite VPC.
+
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.40.0.0/24
+
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.40.1.0/24
+
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.40.10.0/24
+
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.40.11.0/24
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-vpc"
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-igw"
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  # --- Public subnets (NAT + load-balanced ingress only; no agent compute) ---
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-public-1"
+        - Key: edu:tier
+          Value: public
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-public-2"
+        - Key: edu:tier
+          Value: public
+
+  # --- Private subnets (agent runtime, Lambdas, VPC endpoints) ---
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-private-1"
+        - Key: edu:tier
+          Value: private
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-private-2"
+        - Key: edu:tier
+          Value: private
+
+  # --- NAT (single NAT for reference; customer should run one per AZ in prod) ---
+  NatEip:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEip.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-nat"
+
+  # --- Route tables ---
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-public-rt"
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-private-rt"
+
+  PrivateDefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateSubnet2RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+
+  # --- Security groups ---
+  AgentRuntimeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: >
+        Agent runtime (AgentCore container / Lambda ENIs). No public inbound.
+        Egress restricted to HTTPS for AWS service endpoints.
+      VpcId: !Ref Vpc
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS egress to AWS service + connector endpoints (via NAT / VPCe)
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-runtime-sg"
+
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: >
+        Interface VPC endpoints (Bedrock, etc.). Accepts HTTPS only from the
+        agent runtime security group - no broad inbound.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref AgentRuntimeSecurityGroup
+          Description: HTTPS from agent runtime
+      Tags:
+        - Key: Name
+          Value: !Sub "edu-agents-${Environment}-vpce-sg"
+
+  # --- VPC endpoints: keep AWS service traffic off the public internet ---
+  # Bedrock runtime endpoint - in-account inference; student PII never egresses
+  # the VPC to a public Bedrock endpoint after masking.
+  BedrockRuntimeEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.bedrock-runtime"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  # Bedrock control-plane (Guardrail config, KB, agent management)
+  BedrockEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.bedrock"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  # S3 gateway endpoint - WORM document store + nested templates without NAT cost
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+
+  # DynamoDB gateway endpoint - append-only audit + HITL queue tables
+  DynamoDbGatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.dynamodb"
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+
+# ---------------------------------------------------------------------------
+# Outputs (consumed by sibling stacks via the master quickstart template)
+# ---------------------------------------------------------------------------
+Outputs:
+  VpcId:
+    Description: VPC ID for the agent suite environment.
+    Value: !Ref Vpc
+
+  PrivateSubnetIds:
+    Description: Comma-delimited private subnet IDs (agent runtime + Lambdas).
+    Value: !Join [",", [!Ref PrivateSubnet1, !Ref PrivateSubnet2]]
+
+  PublicSubnetIds:
+    Description: Comma-delimited public subnet IDs.
+    Value: !Join [",", [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+
+  AgentRuntimeSecurityGroupId:
+    Description: Security group for agent runtime compute.
+    Value: !Ref AgentRuntimeSecurityGroup
+
+  BedrockRuntimeEndpointId:
+    Description: Interface VPC endpoint ID for Bedrock runtime (in-account inference).
+    Value: !Ref BedrockRuntimeEndpoint

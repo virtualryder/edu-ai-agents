@@ -1,0 +1,24 @@
+[
+  {
+    "request_id": "REQ-PATH-001",
+    "channel": "web",
+    "goal": "plan",
+    "question": "I want to plan my remaining courses toward my AA. What's left and what should I take next?",
+    "acting_user_claims": {"sub": "stu-2055", "custom:edu_role": "STUDENT"}
+  },
+  {
+    "request_id": "REQ-PATH-002",
+    "channel": "mobile",
+    "goal": "transfer",
+    "question": "How do my credits from Prior College map, and what still needs evaluation?",
+    "acting_user_claims": {"sub": "stu-2055", "custom:edu_role": "STUDENT"}
+  },
+  {
+    "request_id": "REQ-PATH-003",
+    "channel": "chat",
+    "goal": "career",
+    "question": "I'm interested in data analytics. What pathway fits, and can I meet with a counselor?",
+    "acting_user_claims": {"sub": "stu-2055", "custom:edu_role": "STUDENT"},
+    "action_request": {"type": "schedule_appointment", "payload": {"with": "counselor", "topic": "data analytics pathway"}}
+  }
+]

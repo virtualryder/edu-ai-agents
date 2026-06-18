@@ -1,0 +1,31 @@
+[
+  {
+    "request_id": "REQ-GRD-001",
+    "channel": "lms",
+    "course": "ENG-101",
+    "submission_id": "SUB-0001",
+    "rubric_ref": "RUB-101",
+    "acting_user_claims": {"sub": "edu-0001", "custom:edu_role": "EDUCATOR"},
+    "description": "Normal open-ended essay evaluation: rubric-grounded feedback, confident score."
+  },
+  {
+    "request_id": "REQ-GRD-002",
+    "channel": "batch",
+    "course": "ENG-101",
+    "submission_id": "SUB-0002",
+    "rubric_ref": "RUB-101",
+    "confidence": 0.42,
+    "acting_user_claims": {"sub": "edu-0001", "custom:edu_role": "EDUCATOR"},
+    "description": "Low-confidence handwritten scan: forces ESCALATE for manual educator review."
+  },
+  {
+    "request_id": "REQ-GRD-003",
+    "channel": "lms",
+    "course": "ENG-101",
+    "submission_id": "SUB-0003",
+    "rubric_ref": "RUB-101",
+    "action_request": {"type": "release_grade", "payload": {"submission_id": "SUB-0003", "rubric_ref": "RUB-101"}},
+    "acting_user_claims": {"sub": "edu-0001", "custom:edu_role": "EDUCATOR"},
+    "description": "Evaluation plus a release_grade action attempt (consequential; requires educator approval)."
+  }
+]

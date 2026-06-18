@@ -1,0 +1,26 @@
+[
+  {
+    "request_id": "REQ-OPS-001",
+    "channel": "portal",
+    "track": "it",
+    "request": "A lab laptop keeps dropping the wifi and is slow. Can you diagnose and open a ticket?",
+    "acting_user_claims": {"sub": "it-4001", "custom:edu_role": "IT_STAFF"},
+    "action_request": {"type": "create_ticket", "payload": {"category": "wifi", "device": "lab-laptop"}}
+  },
+  {
+    "request_id": "REQ-OPS-002",
+    "channel": "phone",
+    "track": "it",
+    "request": "A staff member is locked out and needs a password reset on their account.",
+    "acting_user_claims": {"sub": "it-4002", "custom:edu_role": "IT_ADMIN"},
+    "action_request": {"type": "reset_password", "payload": {"account": "staff-7788"}}
+  },
+  {
+    "request_id": "REQ-OPS-003",
+    "channel": "web",
+    "track": "admin",
+    "request": "Draft a scope-of-work for new classroom projectors and route the spend for approval.",
+    "acting_user_claims": {"sub": "staff-5001", "custom:edu_role": "STAFF_APPROVER"},
+    "action_request": {"type": "initiate_approval", "payload": {"item": "classroom projectors", "amount": "estimate"}}
+  }
+]

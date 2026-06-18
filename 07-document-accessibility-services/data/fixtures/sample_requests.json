@@ -1,0 +1,28 @@
+[
+  {
+    "request_id": "REQ-DOC-001",
+    "channel": "portal",
+    "mode": "enrollment",
+    "document_ref": "DOC-transcript-0001",
+    "question": "Process this submitted transcript and tell me what is still missing.",
+    "acting_user_claims": {"sub": "staff-3001", "custom:edu_role": "ENROLLMENT_STAFF"}
+  },
+  {
+    "request_id": "REQ-DOC-002",
+    "channel": "web",
+    "mode": "accessibility",
+    "document_ref": "CONTENT-welcome-letter-0007",
+    "target_language": "es",
+    "question": "Make this approved welcome letter accessible and translate it to Spanish.",
+    "acting_user_claims": {"sub": "staff-3001", "custom:edu_role": "ENROLLMENT_STAFF"}
+  },
+  {
+    "request_id": "REQ-DOC-003",
+    "channel": "portal",
+    "mode": "enrollment",
+    "document_ref": "DOC-transcript-0002",
+    "question": "Extract the fields and update the enrollment record.",
+    "acting_user_claims": {"sub": "staff-3001", "custom:edu_role": "ENROLLMENT_STAFF"},
+    "action_request": {"type": "update_enrollment_record", "payload": {"student": "STU-demo0001", "field": "transfer_credits"}}
+  }
+]

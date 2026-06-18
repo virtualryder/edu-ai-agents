@@ -1,0 +1,51 @@
+{
+  "_comment": "Hash-pinned prompt versions. Bump via: python -m governance.prompt_registry --update. CI fails if a registered prompt's text changes without a manifest bump (deliberate, reviewed change control).",
+  "01-student-family-concierge:concierge_answer": {
+    "version": 1,
+    "sha256": "78a2804374a240e5bbaa086f3bf601ac34d8fd4957cf2e8df8440169bb75b090",
+    "agent": "01-student-family-concierge",
+    "name": "concierge_answer"
+  },
+  "02-tutor-study-companion:tutor_response": {
+    "version": 1,
+    "sha256": "c0a5e12019329d1b5639154f1d732c79d162e161149b23579f5cfc1735d80e74",
+    "agent": "02-tutor-study-companion",
+    "name": "tutor_response"
+  },
+  "03-educator-copilot:artifact_draft": {
+    "version": 1,
+    "sha256": "6879434700abb33237bf6c13cac4e64a131b7fbaa11a7706ec3f9fd00b90130b",
+    "agent": "03-educator-copilot",
+    "name": "artifact_draft"
+  },
+  "04-assessment-grading-feedback:feedback_draft": {
+    "version": 1,
+    "sha256": "73c6c9c09178f315aeecc7ddf173ffb3693bd726c477d92105fe13be3df73147",
+    "agent": "04-assessment-grading-feedback",
+    "name": "feedback_draft"
+  },
+  "05-student-success-engagement:intervention_draft": {
+    "version": 1,
+    "sha256": "f9b15478ed28ff9bb0c704a6e2fe4d6027735cec1d7cc97f09165666cb0ac16a",
+    "agent": "05-student-success-engagement",
+    "name": "intervention_draft"
+  },
+  "06-pathway-navigator:pathway_plan": {
+    "version": 1,
+    "sha256": "b7d70ded78f089b6e71149f5c0fa2ae3c8115f44e56ab1fd3d7de09ee4342dbb",
+    "agent": "06-pathway-navigator",
+    "name": "pathway_plan"
+  },
+  "07-document-accessibility-services:doc_draft": {
+    "version": 1,
+    "sha256": "c7c569a0f3a686b2c971baa221f437d47e71b90ec9129570e8bcffbbf9151ff3",
+    "agent": "07-document-accessibility-services",
+    "name": "doc_draft"
+  },
+  "08-operations-service-desk:resolution": {
+    "version": 1,
+    "sha256": "9d0390970f44e2845ecb60be0d390c1ad2c1c68e7ceb6351e6dd4773c19cc45a",
+    "agent": "08-operations-service-desk",
+    "name": "resolution"
+  }
+}

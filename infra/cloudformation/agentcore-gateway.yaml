@@ -1,0 +1,224 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - MCP Authorization Gateway stack (Layer 3).
+  REFERENCE / ACCELERATOR TEMPLATE. This stack provisions the governed front
+  door between every agent and every system of record (SIS / LMS / CRM / ITSM):
+  Amazon Bedrock AgentCore Gateway + AgentCore Identity, with one target per
+  system of record, authorizer wiring to Cognito, and short-lived scoped
+  tokens.
+
+  IMPORTANT - AgentCore resource coverage: at the time of writing, several
+  Bedrock AgentCore Gateway / Identity resource types are not yet expressible
+  as first-class CloudFormation resources. Where that is the case this template
+  uses (a) a clearly-labeled custom resource backed by a customer-provided
+  Lambda that calls the AgentCore control-plane APIs, and (b) SSM Parameter
+  Store placeholders that record the intended target configuration so the
+  topology is captured in IaC and can be reconciled once native CFN support
+  lands or via the deployment pipeline. The customer must supply the custom-
+  resource Lambda and validate every target against their live systems.
+
+  Enforcement semantics are identical to platform_core/edu_agent_platform/
+  mcp_gateway/ : deny-by-default, least-privilege role intersection, human-
+  approval gate on consequential tools, PII-masked append-only audit.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+
+  UserPoolId:
+    Type: String
+    Description: Cognito user pool ID (from security stack) used as the gateway authorizer.
+
+  UserPoolClientId:
+    Type: String
+    Default: ""
+    Description: Cognito app client ID for the inbound authorizer audience.
+
+  AgentExecutionRoleArn:
+    Type: String
+    Description: Agent execution role ARN (from security stack) permitted to invoke the gateway.
+
+  KmsKeyArn:
+    Type: String
+    Description: Per-environment CMK ARN for encrypting gateway config / SSM SecureStrings.
+
+  GatewayCustomResourceServiceToken:
+    Type: String
+    Default: ""
+    Description: >
+      Service token (Lambda ARN) for the AgentCore Gateway custom resource the
+      customer supplies. When blank, this template provisions only the SSM
+      placeholder records (topology-as-IaC) without calling the AgentCore
+      control plane - useful for review and demo before the Lambda exists.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasGatewayProvisioner: !Not [!Equals [!Ref GatewayCustomResourceServiceToken, ""]]
+
+# ---------------------------------------------------------------------------
+# Mappings - one target per system of record. Tool names follow the
+# connector_kind.operation convention and map 1:1 to AgentCore Gateway targets.
+# read vs write are separate tools with separate grants; write/consequential
+# tools require the human-approval gate.
+# ---------------------------------------------------------------------------
+Mappings:
+  SystemsOfRecord:
+    sis:
+      Description: "Student Information System (PowerSchool / Banner / Workday Student / Infinite Campus)"
+      ReadTools: "sis.get_student_schedule,sis.check_application_status,sis.get_attendance"
+      WriteTools: "sis.create_advising_case,sis.write_extracted_document"
+      ConsequentialTools: "sis.write_extracted_document"
+    lms:
+      Description: "Learning Management System (Canvas / Blackboard / Schoology / Moodle / D2L)"
+      ReadTools: "lms.get_course_roster,lms.get_assignment"
+      WriteTools: "lms.update_assignment_due_date,lms.post_announcement"
+      ConsequentialTools: "lms.post_announcement"
+    crm:
+      Description: "Constituent / admissions CRM (Slate / Salesforce EDU)"
+      ReadTools: "crm.get_contact,crm.check_inquiry_status"
+      WriteTools: "crm.create_advising_case,crm.draft_family_message"
+      ConsequentialTools: "crm.draft_family_message"
+    itsm:
+      Description: "IT service management (ServiceNow / Jira)"
+      ReadTools: "itsm.get_ticket_status,itsm.search_knowledge"
+      WriteTools: "itsm.submit_it_ticket"
+      ConsequentialTools: ""
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # --- Topology-as-IaC: SSM parameters describing each gateway target --------
+  # These records capture the intended target configuration regardless of
+  # whether the custom-resource provisioner is wired. They are the source of
+  # truth the pipeline reconciles into AgentCore Gateway.
+
+  SisTargetParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/gateway/targets/sis"
+      Type: String
+      Value: !Sub
+        - '{"system":"sis","desc":"${Desc}","read":"${R}","write":"${W}","consequential":"${C}"}'
+        - Desc: !FindInMap [SystemsOfRecord, sis, Description]
+          R: !FindInMap [SystemsOfRecord, sis, ReadTools]
+          W: !FindInMap [SystemsOfRecord, sis, WriteTools]
+          C: !FindInMap [SystemsOfRecord, sis, ConsequentialTools]
+      Description: "AgentCore Gateway target spec - SIS (system of record)."
+
+  LmsTargetParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/gateway/targets/lms"
+      Type: String
+      Value: !Sub
+        - '{"system":"lms","desc":"${Desc}","read":"${R}","write":"${W}","consequential":"${C}"}'
+        - Desc: !FindInMap [SystemsOfRecord, lms, Description]
+          R: !FindInMap [SystemsOfRecord, lms, ReadTools]
+          W: !FindInMap [SystemsOfRecord, lms, WriteTools]
+          C: !FindInMap [SystemsOfRecord, lms, ConsequentialTools]
+      Description: "AgentCore Gateway target spec - LMS (system of record)."
+
+  CrmTargetParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/gateway/targets/crm"
+      Type: String
+      Value: !Sub
+        - '{"system":"crm","desc":"${Desc}","read":"${R}","write":"${W}","consequential":"${C}"}'
+        - Desc: !FindInMap [SystemsOfRecord, crm, Description]
+          R: !FindInMap [SystemsOfRecord, crm, ReadTools]
+          W: !FindInMap [SystemsOfRecord, crm, WriteTools]
+          C: !FindInMap [SystemsOfRecord, crm, ConsequentialTools]
+      Description: "AgentCore Gateway target spec - CRM (system of record)."
+
+  ItsmTargetParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/gateway/targets/itsm"
+      Type: String
+      Value: !Sub
+        - '{"system":"itsm","desc":"${Desc}","read":"${R}","write":"${W}","consequential":"${C}"}'
+        - Desc: !FindInMap [SystemsOfRecord, itsm, Description]
+          R: !FindInMap [SystemsOfRecord, itsm, ReadTools]
+          W: !FindInMap [SystemsOfRecord, itsm, WriteTools]
+          C: !FindInMap [SystemsOfRecord, itsm, ConsequentialTools]
+      Description: "AgentCore Gateway target spec - ITSM (system of record)."
+
+  # Authorizer config: the gateway validates inbound Cognito tokens and reads
+  # the custom:edu_role claim for the least-privilege role intersection.
+  AuthorizerParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/gateway/authorizer"
+      Type: String
+      Value: !Sub
+        - '{"type":"cognito","userPoolId":"${UP}","clientId":"${CL}","roleClaim":"custom:edu_role","denyByDefault":true}'
+        - UP: !Ref UserPoolId
+          CL: !Ref UserPoolClientId
+      Description: "Inbound authorizer wiring for the gateway (deny-by-default; role from custom:edu_role)."
+
+  # --- AgentCore Gateway (custom resource) -----------------------------------
+  # PLACEHOLDER / CUSTOM RESOURCE. Backed by a customer-supplied Lambda that
+  # calls the Bedrock AgentCore Gateway control-plane APIs to create the gateway,
+  # register the four targets above, attach the Cognito authorizer, and wire
+  # AgentCore Identity for short-lived scoped (single-purpose, per-call) tokens.
+  # Only created when GatewayCustomResourceServiceToken is supplied.
+  AgentCoreGateway:
+    Type: AWS::CloudFormation::CustomResource
+    Condition: HasGatewayProvisioner
+    Properties:
+      ServiceToken: !Ref GatewayCustomResourceServiceToken
+      Action: CreateGateway
+      Environment: !Ref Environment
+      AuthorizerParam: !Ref AuthorizerParam
+      TargetParams:
+        - !Ref SisTargetParam
+        - !Ref LmsTargetParam
+        - !Ref CrmTargetParam
+        - !Ref ItsmTargetParam
+      # AgentCore Identity mints short-lived scoped tokens per call - no standing
+      # service accounts. The agent role is the only permitted caller.
+      InvokerRoleArn: !Ref AgentExecutionRoleArn
+      KmsKeyArn: !Ref KmsKeyArn
+
+  # SSM record of the resulting gateway endpoint (populated by the custom
+  # resource, or left as a reconciliation placeholder when not provisioned).
+  GatewayEndpointParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/edu-agents/${Environment}/gateway/endpoint"
+      Type: String
+      Value: !If
+        - HasGatewayProvisioner
+        - !GetAtt AgentCoreGateway.GatewayUrl
+        - "PENDING-PROVISION"
+      Description: >
+        Resolved AgentCore Gateway invocation URL. PENDING-PROVISION until the
+        custom-resource Lambda is supplied and the gateway is created.
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  GatewayEndpointParamName:
+    Description: SSM parameter holding the resolved AgentCore Gateway URL.
+    Value: !Ref GatewayEndpointParam
+
+  AuthorizerParamName:
+    Description: SSM parameter holding the gateway authorizer (Cognito) config.
+    Value: !Ref AuthorizerParam
+
+  TargetParamNames:
+    Description: Comma-delimited SSM parameter names for the four SoR targets.
+    Value: !Join
+      - ","
+      - [!Ref SisTargetParam, !Ref LmsTargetParam, !Ref CrmTargetParam, !Ref ItsmTargetParam]

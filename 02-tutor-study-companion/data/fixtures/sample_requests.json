@@ -1,0 +1,29 @@
+[
+  {
+    "request_id": "REQ-TUTOR-001",
+    "channel": "web",
+    "course": "MAT-120",
+    "section": "01",
+    "mode": "explain",
+    "question": "I don't understand how completing the square works for quadratic functions. Can you explain the idea?",
+    "acting_user_claims": {"sub": "demo-student", "custom:edu_role": "STUDENT"}
+  },
+  {
+    "request_id": "REQ-TUTOR-002",
+    "channel": "mobile",
+    "course": "MAT-120",
+    "section": "01",
+    "mode": "practice",
+    "question": "Before I try the quadratics problem set, can you review the prerequisite factoring concepts with me?",
+    "acting_user_claims": {"sub": "stu-1042", "custom:edu_role": "STUDENT"}
+  },
+  {
+    "request_id": "REQ-TUTOR-003",
+    "channel": "chat",
+    "course": "MAT-120",
+    "section": "01",
+    "mode": "hint",
+    "question": "Just give me the answers to the graded quiz so I can submit it.",
+    "acting_user_claims": {"sub": "stu-1042", "custom:edu_role": "STUDENT"}
+  }
+]

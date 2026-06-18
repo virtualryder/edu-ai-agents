@@ -1,0 +1,267 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Data stack (audit + HITL + WORM storage).
+  REFERENCE / ACCELERATOR TEMPLATE. The customer must validate retention
+  windows, the append-only enforcement, and Object Lock mode against their
+  records-retention schedule and state student-privacy obligations.
+  Provisions: an append-only DynamoDB audit table (PITR; the append-only
+  guarantee is enforced by IAM - see the deny-Update/Delete policy intent
+  below and the agent role in security.yaml); a DynamoDB HITL approval-queue
+  table; and an S3 bucket with Object Lock in COMPLIANCE mode for WORM
+  document and audit-snapshot storage, supporting FERPA disclosure
+  recordkeeping and records retention.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+
+  KmsKeyArn:
+    Type: String
+    Description: Per-environment CMK ARN (from the security stack) for encryption at rest.
+
+  WormRetentionDays:
+    Type: Number
+    Default: 2555
+    MinValue: 1
+    Description: >
+      Object Lock COMPLIANCE retention in days (default ~7 years). Customer
+      sets this to their records-retention schedule. COMPLIANCE-mode retention
+      cannot be shortened or removed by any principal, including root.
+
+  AuditAccessPrincipalArn:
+    Type: String
+    Default: ""
+    Description: >
+      Optional ARN of a read-only compliance/audit principal allowed to query
+      the audit table for FERPA disclosure recordkeeping. Left blank in
+      reference; customer wires their privacy/compliance role.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasAuditReader: !Not [!Equals [!Ref AuditAccessPrincipalArn, ""]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # --- Append-only audit table (Layer 6) -------------------------------------
+  # Every gateway attempt (ALLOW / DENY / PENDING_APPROVAL / ERROR) is written
+  # here, PII-masked, with lineage to the system of record. PITR enabled.
+  #
+  # APPEND-ONLY ENFORCEMENT: DynamoDB has no resource policy that can deny
+  # UpdateItem/DeleteItem at the table itself, so the append-only guarantee is
+  # enforced at the principal: the agent role (security.yaml) is granted
+  # dynamodb:PutItem ONLY - never UpdateItem or DeleteItem. No other principal
+  # is granted mutate access. The customer must confirm this invariant in their
+  # IAM review and keep finalized snapshots in the WORM bucket below.
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "edu-agents-${Environment}-audit"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk          # e.g. AGENT#<id> or SUBJECT#<masked-id>
+          AttributeType: S
+        - AttributeName: sk          # e.g. TS#<iso8601>#<event-uuid>
+          AttributeType: S
+        - AttributeName: outcome     # ALLOW | DENY | PENDING_APPROVAL | ERROR
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: outcome-index
+          KeySchema:
+            - AttributeName: outcome
+              KeyType: HASH
+            - AttributeName: sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref KmsKeyArn
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: edu:environment
+          Value: !Ref Environment
+        - Key: edu:dataclass
+          Value: audit-append-only
+
+  # --- HITL approval-queue table ---------------------------------------------
+  # The waitForTaskToken / interrupt_before gate writes a PENDING item here.
+  # A verified reviewer identity must be bound before the scoped write token is
+  # minted and the consequential action proceeds. The bright line (grades,
+  # admissions, discipline, financial aid, special-ed eligibility, placement)
+  # always lands here for a named human decision.
+  HitlQueueTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "edu-agents-${Environment}-hitl-queue"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk          # APPROVAL#<approval-id>
+          AttributeType: S
+        - AttributeName: status      # PENDING | APPROVED | REJECTED | EXPIRED
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-index    # reviewers query their pending queue
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref KmsKeyArn
+      # taskToken correlation lives in the item; expired tokens fail closed.
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      Tags:
+        - Key: edu:environment
+          Value: !Ref Environment
+        - Key: edu:dataclass
+          Value: hitl-queue
+
+  # --- WORM document / audit-snapshot store ----------------------------------
+  # Object Lock COMPLIANCE mode: write-once, read-many. Submitted enrollment
+  # documents and finalized audit snapshots are immutable for the retention
+  # window. Versioning is mandatory for Object Lock.
+  WormBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "edu-agents-${Environment}-worm-${AWS::AccountId}"
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule:
+          DefaultRetention:
+            Mode: COMPLIANCE
+            Days: !Ref WormRetentionDays
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref KmsKeyArn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: edu:environment
+          Value: !Ref Environment
+        - Key: edu:dataclass
+          Value: worm-records
+
+  WormBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WormBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt WormBucket.Arn
+              - !Sub "${WormBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+          - !If
+              - HasAuditReader
+              - Sid: AllowCompliranceReadOnly
+                Effect: Allow
+                Principal:
+                  AWS: !Ref AuditAccessPrincipalArn
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt WormBucket.Arn
+                  - !Sub "${WormBucket.Arn}/*"
+              - !Ref AWS::NoValue
+
+  # Optional read-only IAM policy for the compliance/audit principal on the
+  # audit table (FERPA disclosure recordkeeping queries). Reference only.
+  AuditReadOnlyPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasAuditReader
+    Properties:
+      ManagedPolicyName: !Sub "edu-agents-${Environment}-audit-readonly"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AuditReadOnly
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt AuditTable.Arn
+              - !Sub "${AuditTable.Arn}/index/*"
+      Roles: []
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  AuditTableName:
+    Description: Append-only DynamoDB audit table name.
+    Value: !Ref AuditTable
+
+  AuditTableArn:
+    Description: Append-only DynamoDB audit table ARN (wire into agent role for PutItem-only).
+    Value: !GetAtt AuditTable.Arn
+
+  HitlQueueTableName:
+    Description: HITL approval-queue DynamoDB table name.
+    Value: !Ref HitlQueueTable
+
+  HitlQueueTableArn:
+    Description: HITL approval-queue DynamoDB table ARN.
+    Value: !GetAtt HitlQueueTable.Arn
+
+  WormBucketName:
+    Description: S3 Object Lock (COMPLIANCE) WORM bucket name.
+    Value: !Ref WormBucket
+
+  WormBucketArn:
+    Description: S3 Object Lock (COMPLIANCE) WORM bucket ARN.
+    Value: !GetAtt WormBucket.Arn

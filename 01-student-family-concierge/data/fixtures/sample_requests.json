@@ -1,0 +1,28 @@
+[
+  {
+    "request_id": "REQ-CONC-001",
+    "channel": "web",
+    "intent": "INFO",
+    "authenticated": false,
+    "question": "What is the deadline to add or drop a class this term, and is there a fee?",
+    "acting_user_claims": {"sub": "demo-student", "custom:edu_role": "STUDENT"}
+  },
+  {
+    "request_id": "REQ-CONC-002",
+    "channel": "mobile",
+    "intent": "STATUS",
+    "authenticated": true,
+    "question": "What's the status of my application and what do I still need to submit?",
+    "acting_user_claims": {"sub": "stu-1042", "custom:edu_role": "STUDENT"},
+    "action_request": {"type": "create_advising_case", "payload": {"topic": "application documents"}}
+  },
+  {
+    "request_id": "REQ-CONC-003",
+    "channel": "chat",
+    "intent": "ACTION",
+    "authenticated": true,
+    "question": "Can someone from financial aid reach out to my family about next steps?",
+    "acting_user_claims": {"sub": "stu-1042", "custom:edu_role": "STUDENT"},
+    "action_request": {"type": "send_message", "payload": {"to": "guardian", "topic": "financial aid next steps"}}
+  }
+]

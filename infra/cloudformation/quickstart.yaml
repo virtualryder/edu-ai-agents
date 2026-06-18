@@ -1,0 +1,190 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Quick Deploy master template.
+  REFERENCE / ACCELERATOR TEMPLATE. The customer must review, harden, and
+  validate every nested stack before production use, and complete the security
+  & privacy review, IdP integration, Guardrail tuning, and connector validation
+  described in docs/DEPLOYMENT-HANDBOOK.md.
+
+  This master template nests the platform stacks in dependency order:
+    1. network.yaml           - VPC, subnets, NAT, security groups, Bedrock VPCe
+    2. security.yaml          - KMS CMK, Bedrock Guardrail, Cognito + IdP, agent IAM role
+    3. data.yaml              - append-only audit, HITL queue, S3 Object Lock WORM
+    4. agentcore-gateway.yaml - AgentCore Gateway + Identity; one target per SoR
+    5. agent-service.yaml     - per-agent runtime (native Step Functions | container)
+
+  Nested templates must be uploaded to TemplateBaseUrl; Lambda artifacts to
+  LambdaCodeBucket. See docs/DEPLOYMENT-HANDBOOK.md step 4.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+    Description: Deployment environment (drives naming, the per-env CMK, and tags).
+
+  AgentId:
+    Type: String
+    Default: "01-concierge"
+    Description: >
+      Agent to deploy in this environment (e.g. 01-concierge - the recommended
+      best-first deployment). Deploy additional agents by repeating with a new
+      AgentId; the platform stacks (network/security/data/gateway) are shared.
+
+  DeployMode:
+    Type: String
+    Default: native
+    AllowedValues: [native, container]
+    Description: native = Step Functions + Lambda; container = AgentCore Runtime container.
+
+  TemplateBaseUrl:
+    Type: String
+    Description: >
+      HTTPS base URL of the S3 location holding the nested templates
+      (network.yaml, security.yaml, data.yaml, agentcore-gateway.yaml,
+      agent-service.yaml). No trailing slash.
+
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket holding packaged Lambda deployment artifacts (native path).
+
+  IdpMetadataUrl:
+    Type: String
+    Default: ""
+    Description: >
+      SAML/OIDC metadata document URL for the institution's IdP. Leave blank to
+      provision the user pool without federation (early demo); wire during IdP
+      integration.
+
+  ContainerImageUri:
+    Type: String
+    Default: ""
+    Description: ECR image URI for the AgentCore Runtime container (required when DeployMode = container).
+
+# ---------------------------------------------------------------------------
+# Resources - nested stacks
+# ---------------------------------------------------------------------------
+Resources:
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplateBaseUrl}/network.yaml"
+      Parameters:
+        Environment: !Ref Environment
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplateBaseUrl}/security.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        IdpMetadataUrl: !Ref IdpMetadataUrl
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  DataStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SecurityStack
+    Properties:
+      TemplateURL: !Sub "${TemplateBaseUrl}/data.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        KmsKeyArn: !GetAtt SecurityStack.Outputs.KmsKeyArn
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  GatewayStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: [SecurityStack, DataStack]
+    Properties:
+      TemplateURL: !Sub "${TemplateBaseUrl}/agentcore-gateway.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        UserPoolId: !GetAtt SecurityStack.Outputs.UserPoolId
+        AgentExecutionRoleArn: !GetAtt SecurityStack.Outputs.AgentExecutionRoleArn
+        KmsKeyArn: !GetAtt SecurityStack.Outputs.KmsKeyArn
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  AgentServiceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: [NetworkStack, SecurityStack, DataStack, GatewayStack]
+    Properties:
+      TemplateURL: !Sub "${TemplateBaseUrl}/agent-service.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        AgentId: !Ref AgentId
+        DeployMode: !Ref DeployMode
+        AgentExecutionRoleArn: !GetAtt SecurityStack.Outputs.AgentExecutionRoleArn
+        LambdaCodeBucket: !Ref LambdaCodeBucket
+        ContainerImageUri: !Ref ContainerImageUri
+        PrivateSubnetIds: !GetAtt NetworkStack.Outputs.PrivateSubnetIds
+        AgentSecurityGroupId: !GetAtt NetworkStack.Outputs.AgentRuntimeSecurityGroupId
+        AuditTableName: !GetAtt DataStack.Outputs.AuditTableName
+        HitlQueueTableName: !GetAtt DataStack.Outputs.HitlQueueTableName
+        GuardrailId: !GetAtt SecurityStack.Outputs.GuardrailId
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+        - Key: edu:agent
+          Value: !Ref AgentId
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  VpcId:
+    Description: Suite VPC ID.
+    Value: !GetAtt NetworkStack.Outputs.VpcId
+
+  KmsKeyArn:
+    Description: Per-environment customer-managed KMS key ARN.
+    Value: !GetAtt SecurityStack.Outputs.KmsKeyArn
+
+  GuardrailId:
+    Description: Bedrock Guardrail ID applied on every LLM call.
+    Value: !GetAtt SecurityStack.Outputs.GuardrailId
+
+  UserPoolId:
+    Description: Cognito user pool federating the institution IdP.
+    Value: !GetAtt SecurityStack.Outputs.UserPoolId
+
+  AuditTableName:
+    Description: Append-only audit table name.
+    Value: !GetAtt DataStack.Outputs.AuditTableName
+
+  HitlQueueTableName:
+    Description: HITL approval-queue table name.
+    Value: !GetAtt DataStack.Outputs.HitlQueueTableName
+
+  WormBucketName:
+    Description: S3 Object Lock (COMPLIANCE) WORM bucket name.
+    Value: !GetAtt DataStack.Outputs.WormBucketName
+
+  GatewayEndpointParamName:
+    Description: SSM parameter holding the resolved AgentCore Gateway URL.
+    Value: !GetAtt GatewayStack.Outputs.GatewayEndpointParamName
+
+  DeployModeUsed:
+    Description: Runtime path provisioned for the agent.
+    Value: !GetAtt AgentServiceStack.Outputs.DeployModeUsed

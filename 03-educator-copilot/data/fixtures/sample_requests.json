@@ -1,0 +1,27 @@
+[
+  {
+    "request_id": "REQ-COPILOT-001",
+    "channel": "web",
+    "artifact_type": "differentiation",
+    "course": "MAT-120",
+    "instructions": "Draft a differentiated lesson on quadratic functions for Unit 3, with supports for students who are behind and an extension for those ahead.",
+    "acting_user_claims": {"sub": "demo-educator", "custom:edu_role": "EDUCATOR"}
+  },
+  {
+    "request_id": "REQ-COPILOT-002",
+    "channel": "web",
+    "artifact_type": "rubric",
+    "course": "MAT-120",
+    "instructions": "Draft a 4-criteria rubric for the Quadratics Problem Set aligned to the Unit 3 objectives.",
+    "acting_user_claims": {"sub": "edu-2207", "custom:edu_role": "EDUCATOR"}
+  },
+  {
+    "request_id": "REQ-COPILOT-003",
+    "channel": "web",
+    "artifact_type": "announcement",
+    "course": "MAT-120",
+    "instructions": "Draft an announcement letting students know the Quadratics Problem Set due date is moving, and request the date change.",
+    "acting_user_claims": {"sub": "edu-2207", "custom:edu_role": "EDUCATOR"},
+    "action_request": {"type": "update_assignment_due_date", "payload": {"assignment": "A5", "new_due": "2026-10-09"}}
+  }
+]

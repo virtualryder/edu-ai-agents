@@ -1,0 +1,345 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Security stack (Layer 3 identity + Layer 5 safety).
+  REFERENCE / ACCELERATOR TEMPLATE. The customer must tune the Guardrail for
+  their student population (including minors / COPPA under-13), wire their own
+  IdP, and validate the IAM least-privilege boundary before production use.
+  Provisions: a per-environment KMS customer-managed key; a Bedrock Guardrail
+  (PII denial, age-appropriate content for minors, prohibited-behavior topic
+  filters); a Cognito user pool + identity pool federating the institution's
+  IdP via SAML/OIDC with a custom:edu_role attribute; and the least-privilege
+  agent IAM execution role.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+
+  IdpMetadataUrl:
+    Type: String
+    Default: ""
+    Description: >
+      SAML metadata document URL for the institution's IdP (Okta / Entra /
+      Google Workspace / AD FS). Leave blank to provision the user pool without
+      a federated provider (e.g., for an early demo); the customer wires this
+      during IdP integration.
+
+  IdpProviderType:
+    Type: String
+    Default: SAML
+    AllowedValues: [SAML, OIDC]
+    Description: Federation protocol for the institution IdP.
+
+  AuditTableArn:
+    Type: String
+    Default: ""
+    Description: >
+      ARN of the append-only audit DynamoDB table (from the data stack). Used
+      to scope the agent role's write-only append permission. Optional at
+      create time; the master template wires it.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasIdp: !Not [!Equals [!Ref IdpMetadataUrl, ""]]
+  IsSaml: !Equals [!Ref IdpProviderType, SAML]
+  HasAuditTable: !Not [!Equals [!Ref AuditTableArn, ""]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # --- KMS customer-managed key: one key per environment ---------------------
+  # Encrypts audit table, HITL table, WORM bucket, Secrets Manager secrets.
+  # NOTE: losing this CMK loses the data it protects - see runbooks/DR-RUNBOOK.md.
+  EnvKmsKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub "EDU AI Agent Suite CMK - ${Environment}"
+      EnableKeyRotation: true
+      MultiRegion: false
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountRoot
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowAgentRoleUse
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt AgentExecutionRole.Arn
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource: "*"
+
+  EnvKmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/edu-agents-${Environment}"
+      TargetKeyId: !Ref EnvKmsKey
+
+  # --- Bedrock Guardrail: runs on every LLM call (Layer 5) -------------------
+  # Reference configuration. The customer MUST tune sensitivity, denied topics,
+  # and the minors / COPPA under-13 posture for their population.
+  AgentGuardrail:
+    Type: AWS::Bedrock::Guardrail
+    Properties:
+      Name: !Sub "edu-agents-${Environment}-guardrail"
+      Description: >
+        EDU compliance Guardrail - PII denial, age-appropriate content for
+        minors, prohibited-behavior topic filters. Supplements (never replaces)
+        Layer 3 gateway authorization.
+      BlockedInputMessaging: >
+        This request cannot be processed. If you need help, please contact your
+        school's support team.
+      BlockedOutputsMessaging: >
+        This response was withheld by the institution's content safeguards.
+      KmsKeyArn: !GetAtt EnvKmsKey.Arn
+      # PII denial - anonymize/deny FERPA-protected and COPPA identifiers.
+      SensitiveInformationPolicyConfig:
+        PiiEntitiesConfig:
+          - Type: NAME
+            Action: ANONYMIZE
+          - Type: EMAIL
+            Action: ANONYMIZE
+          - Type: PHONE
+            Action: ANONYMIZE
+          - Type: US_SOCIAL_SECURITY_NUMBER
+            Action: BLOCK
+          - Type: AGE
+            Action: ANONYMIZE
+          - Type: ADDRESS
+            Action: ANONYMIZE
+      # Prohibited-behavior topic filters (reference examples).
+      TopicPolicyConfig:
+        TopicsConfig:
+          - Name: ProhibitedAssessmentCompletion
+            Definition: >
+              Requests for the agent to directly complete a graded assessment,
+              exam, or assignment on a student's behalf in violation of
+              academic-integrity policy.
+            Examples:
+              - "Write my entire graded essay and submit it as mine."
+              - "Give me the exam answer key."
+            Type: DENY
+          - Name: SelfHarmOrCrisis
+            Definition: >
+              Content indicating a student is in crisis or at risk of self-harm,
+              which must route to human crisis resources, not an autonomous reply.
+            Type: DENY
+      # Age-appropriate content filters - heightened for student-facing surfaces.
+      ContentPolicyConfig:
+        FiltersConfig:
+          - Type: SEXUAL
+            InputStrength: HIGH
+            OutputStrength: HIGH
+          - Type: VIOLENCE
+            InputStrength: HIGH
+            OutputStrength: HIGH
+          - Type: HATE
+            InputStrength: HIGH
+            OutputStrength: HIGH
+          - Type: INSULTS
+            InputStrength: MEDIUM
+            OutputStrength: MEDIUM
+          - Type: PROMPT_ATTACK
+            InputStrength: HIGH
+            OutputStrength: NONE
+
+  AgentGuardrailVersion:
+    Type: AWS::Bedrock::GuardrailVersion
+    Properties:
+      GuardrailIdentifier: !GetAtt AgentGuardrail.GuardrailId
+      Description: !Sub "Initial published version - ${Environment}"
+
+  # --- Cognito user pool: federates the institution IdP ----------------------
+  # Identity provider for the suite. Roles ride in the custom:edu_role claim.
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "edu-agents-${Environment}"
+      MfaConfiguration: "OPTIONAL"
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 14
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      Schema:
+        # custom:edu_role carries student | guardian | educator | counselor | administrator
+        - Name: edu_role
+          AttributeDataType: String
+          Mutable: true
+          StringAttributeConstraints:
+            MinLength: "1"
+            MaxLength: "32"
+        # under_13 flag drives heightened Guardrails / COPPA data minimization
+        - Name: under_13
+          AttributeDataType: String
+          Mutable: true
+        # age_of_majority flag carries FERPA rights-transfer state
+        - Name: rights_transferred
+          AttributeDataType: String
+          Mutable: true
+      UserPoolTags:
+        edu:environment: !Ref Environment
+
+  # SAML/OIDC federated identity provider (the institution's own IdP).
+  UserPoolIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasIdp
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: InstitutionIdP
+      ProviderType: !If [IsSaml, SAML, OIDC]
+      ProviderDetails:
+        !If
+          - IsSaml
+          - MetadataURL: !Ref IdpMetadataUrl
+          - oidc_issuer: !Ref IdpMetadataUrl
+            authorize_scopes: "openid email profile"
+      # Map IdP assertions to the role + COPPA claims. The customer owns the
+      # exact IdP group -> edu_role mapping and the age-of-majority logic.
+      AttributeMapping:
+        email: email
+        "custom:edu_role": "edu_role"
+        "custom:under_13": "under_13"
+        "custom:rights_transferred": "rights_transferred"
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "edu-agents-${Environment}-client"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      SupportedIdentityProviders:
+        !If
+          - HasIdp
+          - [InstitutionIdP]
+          - [COGNITO]
+      CallbackURLs:
+        - https://localhost/callback
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub "edu_agents_${Environment}"
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
+  # --- Agent execution IAM role: least privilege -----------------------------
+  # The agent runtime assumes this role. It can invoke Bedrock (with Guardrail),
+  # append to the audit table, read its scoped secrets, and use the env CMK.
+  # It holds NO direct system-of-record credentials - all SoR access is brokered
+  # by the Layer 3 gateway with short-lived scoped tokens.
+  AgentExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "edu-agents-${Environment}-agent-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - states.amazonaws.com
+                - bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      Policies:
+        - PolicyName: BedrockInvokeWithGuardrail
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: InvokeClaudeInAccount
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:ApplyGuardrail
+                Resource: "*"
+        - PolicyName: AppendOnlyAudit
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Append-only: PutItem allowed, Update/Delete intentionally absent.
+              - !If
+                  - HasAuditTable
+                  - Sid: AppendAuditOnly
+                    Effect: Allow
+                    Action: dynamodb:PutItem
+                    Resource: !Ref AuditTableArn
+                  - !Ref AWS::NoValue
+        - PolicyName: ScopedSecretsAndKms
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadConnectorSecrets
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:edu-agents/${Environment}/*"
+              - Sid: UseEnvCmk
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt EnvKmsKey.Arn
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  KmsKeyArn:
+    Description: Per-environment customer-managed KMS key ARN.
+    Value: !GetAtt EnvKmsKey.Arn
+
+  KmsKeyId:
+    Description: Per-environment CMK ID.
+    Value: !Ref EnvKmsKey
+
+  GuardrailId:
+    Description: Bedrock Guardrail ID applied on every LLM call.
+    Value: !GetAtt AgentGuardrail.GuardrailId
+
+  GuardrailVersion:
+    Description: Published Guardrail version.
+    Value: !GetAtt AgentGuardrailVersion.Version
+
+  UserPoolId:
+    Description: Cognito user pool federating the institution IdP.
+    Value: !Ref UserPool
+
+  IdentityPoolId:
+    Description: Cognito identity pool ID.
+    Value: !Ref IdentityPool
+
+  AgentExecutionRoleArn:
+    Description: Least-privilege agent execution role ARN.
+    Value: !GetAtt AgentExecutionRole.Arn

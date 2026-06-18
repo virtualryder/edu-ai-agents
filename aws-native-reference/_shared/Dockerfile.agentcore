@@ -1,0 +1,31 @@
+# AgentCore Runtime container — implements the /invocations + /ping contract.
+# Build per agent with: --build-arg AGENT=01-student-family-concierge
+# ARM64 target (AgentCore Runtime), non-root, slim.
+FROM --platform=linux/arm64 python:3.11-slim
+
+ARG AGENT
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    EXTRACT_MODE=demo \
+    CONNECTOR_MODE=fixture \
+    AGENT_DIR=/app/agent_pkg \
+    PORT=8080
+
+WORKDIR /app
+
+# Shared platform + the selected agent + the server.
+COPY platform_core /app/platform_core
+COPY governance /app/governance
+COPY ${AGENT} /app/agent_pkg
+COPY aws-native-reference/_shared/agentcore_server.py /app/agentcore_server.py
+
+RUN pip install --no-cache-dir -e /app/platform_core \
+ && pip install --no-cache-dir -r /app/agent_pkg/requirements.txt
+
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/ping').status==200 else 1)" || exit 1
+ENTRYPOINT ["python", "/app/agentcore_server.py"]
