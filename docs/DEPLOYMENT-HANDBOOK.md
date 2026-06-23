@@ -89,9 +89,46 @@ aws cognito-idp describe-identity-provider \
 
 ---
 
+## Step 3.5 — Build the agent runtime artifacts (do this before Step 4)
+
+Step 4 consumes a built artifact: a **container image URI** (container path) or **packaged Lambda zips**
+(native path). The scripts in `scripts/` produce them. **Prove the artifact locally first** — no docker
+or AWS needed:
+
+```bash
+scripts/local_smoke.sh 01-student-family-concierge      # starts the runtime, checks /ping + /invocations
+```
+
+**Container path (recommended — cleanest, and what `demo-in-a-box.yaml` uses):**
+```bash
+IMAGE=$(scripts/build_and_push_image.sh --agent 01-student-family-concierge --region <region> \
+        | sed -n 's/^ContainerImageUri=//p')
+# IMAGE is the ARM64 ECR image URI -> pass to Step 4 as ContainerImageUri (DeployMode=container)
+```
+
+**Native path (Step Functions + Lambda + `waitForTaskToken` HITL gate):**
+```bash
+scripts/package_lambdas.sh --agent 01-student-family-concierge \
+  --bucket <lambda-code-bucket> --agent-id 01-concierge --region <region>
+# produces & uploads core/policy_gate/hitl_enqueue/finalize.zip under lambdas/01-concierge/
+```
+
+> **Fully turnkey demo:** for a POC workshop, `infra/cloudformation/demo-in-a-box.yaml` stands up Agent 01
+> on **ECS Fargate behind an ALB** from the image above — a running URL with no IdP/SoR wiring. See
+> `scripts/README.md`.
+
+> **Authoring a NEW agent (not just deploying one)?** Follow `docs/CREATE-A-NEW-AGENT.md` first — it covers
+> registering tool grants, the LangGraph workflow, prompts/manifest, and tests. A new agent inherits this
+> entire deployment path unchanged.
+
+`scripts/deploy.sh` wraps Step 4 below into a single command once the artifact exists.
+
+---
+
 ## Step 4 — Stage and deploy CloudFormation
 
 CloudFormation is the primary path. `quickstart.yaml` is the **master template** and **nests** the others.
+`scripts/deploy.sh` runs 4.1–4.3 for you; the manual steps are documented here for transparency.
 
 **4.1 Stage the nested templates** to the `TemplateBaseUrl` bucket:
 ```bash
@@ -100,9 +137,10 @@ aws s3 cp infra/cloudformation/ s3://<template-bucket>/cfn/ \
 # TemplateBaseUrl = https://<template-bucket>.s3.<region>.amazonaws.com/cfn
 ```
 
-**4.2 Package Lambda code** to the `LambdaCodeBucket` (native deploy path):
+**4.2 Package Lambda code** to the `LambdaCodeBucket` (native deploy path) — produced in Step 3.5 by
+`scripts/package_lambdas.sh` (which also uploads when `--bucket` is given). To upload manually:
 ```bash
-aws s3 cp ./build/lambda/ s3://<lambda-code-bucket>/lambda/ --recursive
+aws s3 cp ./build/lambda/01-concierge/ s3://<lambda-code-bucket>/lambdas/01-concierge/ --recursive
 ```
 
 **4.3 Deploy the master stack** with parameters:
@@ -293,5 +331,10 @@ All eight agents share the same platform skeleton (gateway, identity, audit, HIT
 - EDU compliance spine and the bright line: `governance/README.md`
 - Gateway reference logic: `platform_core/edu_agent_platform/mcp_gateway/README.md`
 - Native rebuild + container contract: `aws-native-reference/README.md`
+- **Build & deploy scripts** (build image, package Lambdas, deploy, local smoke): `scripts/README.md`
+- **Author a new agent**: `docs/CREATE-A-NEW-AGENT.md`
+- **Turnkey POC demo** (ECS Fargate + ALB): `infra/cloudformation/demo-in-a-box.yaml`
+- AWS prerequisites & funding (region/quotas/model access, MAP/POA): `docs/AWS-FUNDING-AND-PREREQUISITES.md`
+- Shared-responsibility matrix · Well-Architected GenAI Lens: `docs/SHARED-RESPONSIBILITY-MATRIX.md`, `docs/WELL-ARCHITECTED-GENAI-LENS.md`
 - Infrastructure templates: `infra/cloudformation/` (`quickstart.yaml`, `network.yaml`, `security.yaml`, `data.yaml`, `agentcore-gateway.yaml`, `agent-service.yaml`); Terraform parity in `infra/terraform/`
 - Operations runbooks: `runbooks/` (HITL queue operations, incident response, key rotation)

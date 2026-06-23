@@ -30,6 +30,13 @@ live connectors, WCAG 2.2 AA conformance, penetration test) is the engagement.
   with a reference launch handler and role-mapping tests — the Layer-1 bridge for LMS-embedded agents.
 - **CI** (`.github/workflows/ci.yml`): platform+governance tests, each agent per-process, LTI tests,
   prompt-manifest drift check, compile-all, and cfn-lint — matrixed on Python 3.11/3.12, no secrets.
+- **Build & deploy tooling** (`scripts/`): `build_and_push_image.sh` (ARM64 -> ECR), `package_lambdas.sh`
+  (four native zips matching the CFN keys, via a shared `handler.lambda_handler` shim), `deploy.sh`
+  (stage templates + deploy quickstart), `local_smoke.sh` (run the container contract locally), + README.
+  The DEPLOYMENT-HANDBOOK now has a "Step 3.5 — Build the agent runtime artifacts" wiring these in.
+- **Author-a-new-agent runbook** (`docs/CREATE-A-NEW-AGENT.md`): end-to-end recipe (register tool grants
+  + role entitlements, LangGraph workflow, prompts/manifest, fixtures, tests, deploy) — validated by
+  scaffolding a throwaway agent (8 tests pass, HITL auto-discovered it, local_smoke OK).
 - **AWS deployment**: CloudFormation (6 templates, validated) + Terraform parity; AgentCore Runtime
   container server (`/invocations` + `/ping`, ARM64) — smoke-tested locally; `Makefile` entrypoints.
 - **Field & GTM**: positioning, MCP-layer explainer (+ 3 gateway options), six-layer architecture,

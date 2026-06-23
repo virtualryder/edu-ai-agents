@@ -102,6 +102,24 @@ Built in from the first commit, not added after a pilot. See `governance/README.
 
 ## AWS Deployment
 
+### Deploy it yourself — three commands (container path)
+The `scripts/` directory builds and deploys an agent; `docs/DEPLOYMENT-HANDBOOK.md` is the full
+empty-account→running-agent runbook (prerequisites, Bedrock model access, Guardrail, IdP, validation
+checklist).
+
+```bash
+scripts/local_smoke.sh 01-student-family-concierge            # prove the runtime locally (no cloud)
+IMAGE=$(scripts/build_and_push_image.sh --agent 01-student-family-concierge --region us-east-1 \
+        | sed -n 's/^ContainerImageUri=//p')                  # build ARM64 image -> ECR
+scripts/deploy.sh --env prod --agent-id 01-concierge --mode container \
+  --template-bucket my-cfn-bucket --idp-metadata https://idp/.../metadata --image "$IMAGE"
+```
+
+- **Turnkey POC demo** (a running URL, no IdP/SoR wiring): `infra/cloudformation/demo-in-a-box.yaml` (ECS Fargate + ALB).
+- **Native path** (Step Functions + Lambda + `waitForTaskToken` HITL gate): `scripts/package_lambdas.sh` then `scripts/deploy.sh --mode native`.
+- **Author a NEW agent** (it inherits this whole deployment path): `docs/CREATE-A-NEW-AGENT.md`.
+- **Scripts reference**: `scripts/README.md`. **AWS prerequisites & funding**: `docs/AWS-FUNDING-AND-PREREQUISITES.md`.
+
 ### CloudFormation Quick Deploy (primary path)
 One master template provisions a customer-isolated environment:
 
@@ -148,6 +166,7 @@ edu-ai-agents/
 │       ├── pii_masker/                  # FERPA/COPPA student-PII masking
 │       └── connectors/                  # SIS · LMS · ERP · CRM · ITSM · scheduling (fixture + live)
 │
+├── scripts/                             # build_and_push_image · package_lambdas · deploy · local_smoke (+ README)
 ├── governance/                          # EDU compliance spine + grounding, evals, HITL tests, red team, fairness
 ├── aws-native-reference/                # AWS-native deployment (container + native) for all 8 agents
 ├── infra/
