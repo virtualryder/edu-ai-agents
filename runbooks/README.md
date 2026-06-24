@@ -28,6 +28,27 @@ Every consequential action is **HITL-gated** to a named, authorized human whose 
 
 ---
 
+## Per-agent deploy runbooks
+
+The four runbooks above are **operational** — they pick up after the platform is running. The runbooks under [`agent-deploy/`](./agent-deploy/) are **deployment** runbooks: how to stand up each of the eight agents on the shared secure request path. They build on the master AWS deployment reference and cover only what is specific to each agent (its tools, connectors, secrets, gateway targets, consequential/HITL-gated actions, agent-specific infra, and a per-agent smoke test).
+
+> **Start with the master.** Read [`docs/AWS-DEPLOYMENT-REFERENCE.md`](../docs/AWS-DEPLOYMENT-REFERENCE.md) first — the step-by-step shared runbook for the secure request path (KMS → network → identity → edge → JWT exchange → runtime → tools → data → observability → HITL → validation → teardown), with the layer-to-CloudFormation map and the gaps the shipped IaC does not yet cover. Stand the shared platform up **once per environment**, then deploy agents on top of it.
+
+| # | Agent | Runbook | Consequential / HITL-gated tools |
+|---|---|---|---|
+| 01 | Student & Family Services Concierge | [`agent-deploy/01-student-family-concierge.md`](./agent-deploy/01-student-family-concierge.md) | `comms.send_message` |
+| 02 | Personalized Tutor & Study Companion | [`agent-deploy/02-tutor-study-companion.md`](./agent-deploy/02-tutor-study-companion.md) | none (Guardrail + grounding boundary) |
+| 03 | Educator Copilot | [`agent-deploy/03-educator-copilot.md`](./agent-deploy/03-educator-copilot.md) | `lms.update_assignment_due_date`, `lms.publish_content` |
+| 04 | Assessment, Grading & Feedback | [`agent-deploy/04-assessment-grading-feedback.md`](./agent-deploy/04-assessment-grading-feedback.md) | `assessment.release_grade` |
+| 05 | Student Success & Proactive Engagement | [`agent-deploy/05-student-success-engagement.md`](./agent-deploy/05-student-success-engagement.md) | `comms.send_message` |
+| 06 | Academic / College / Career Pathway Navigator | [`agent-deploy/06-pathway-navigator.md`](./agent-deploy/06-pathway-navigator.md) | none (placement is human; no consequential tools) |
+| 07 | Document & Accessibility Services | [`agent-deploy/07-document-accessibility-services.md`](./agent-deploy/07-document-accessibility-services.md) | `sis.update_enrollment_record` |
+| 08 | Operations Service Desk | [`agent-deploy/08-operations-service-desk.md`](./agent-deploy/08-operations-service-desk.md) | `itsm.reset_password`, `itsm.restart_service`, `erp.initiate_approval` |
+
+**Recommended first deployment: Agent 01.** Deploy 01/03/07/08 first (broad visibility, lower decision-risk), then expand to 02/04/05/06 (stronger evaluation, educator oversight, fairness testing, evidence retention). The bright line applies to every agent.
+
+---
+
 ## Prerequisites — what must already exist before these runbooks work
 
 These runbooks assume the platform was deployed per [`docs/DEPLOYMENT-HANDBOOK.md`](../docs/DEPLOYMENT-HANDBOOK.md) and that the following are live and observable. If any is missing, fix that first — a runbook that depends on an audit trail is useless without one.

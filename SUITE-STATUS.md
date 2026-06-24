@@ -24,21 +24,24 @@ live connectors, WCAG 2.2 AA conformance, penetration test) is the engagement.
   through the gateway, `CONNECTOR_MODE=live`, inference auto-selecting Bedrock->Anthropic->demo),
   `demo/DEMO-LIVE.md`, and `tests/test_live_path.py`. Consequential actions (send a message, release a
   grade) are gated at the gateway before any HTTP call, then execute on approval. Point each
-  `<KIND>_BASE_URL` at the customer gateway to hit real systems with no code change.
-- **Canvas / LMS LTI 1.3 reference** (`aws-native-reference/_shared/canvas_lti/`): maps an LTI launch's
-  roles + age signals to gateway identity (`custom:edu_role`, FERPA rights-transfer, COPPA under-13),
-  with a reference launch handler and role-mapping tests — the Layer-1 bridge for LMS-embedded agents.
-- **CI** (`.github/workflows/ci.yml`): platform+governance tests, each agent per-process, LTI tests,
-  prompt-manifest drift check, compile-all, and cfn-lint — matrixed on Python 3.11/3.12, no secrets.
-- **Build & deploy tooling** (`scripts/`): `build_and_push_image.sh` (ARM64 -> ECR), `package_lambdas.sh`
-  (four native zips matching the CFN keys, via a shared `handler.lambda_handler` shim), `deploy.sh`
-  (stage templates + deploy quickstart), `local_smoke.sh` (run the container contract locally), + README.
-  The DEPLOYMENT-HANDBOOK now has a "Step 3.5 — Build the agent runtime artifacts" wiring these in.
-- **Author-a-new-agent runbook** (`docs/CREATE-A-NEW-AGENT.md`): end-to-end recipe (register tool grants
-  + role entitlements, LangGraph workflow, prompts/manifest, fixtures, tests, deploy) — validated by
-  scaffolding a throwaway agent (8 tests pass, HITL auto-discovered it, local_smoke OK).
-- **AWS deployment**: CloudFormation (6 templates, validated) + Terraform parity; AgentCore Runtime
-  container server (`/invocations` + `/ping`, ARM64) — smoke-tested locally; `Makefile` entrypoints.
+  `<KIND>_BASE_URL` at the cus
+## June 2026 additions (SLG-parity uplift + GTM & deployment)
+- **Governance deepened to SLG parity:** added `governance/accessibility/` (WCAG 2.1 AA / ADA Title II
+  pre-flight on AI-generated content), `governance/fairness/disparate_impact.py` (four-fifths screen for
+  at-risk flag/rank workflows), `governance/controls/control_mappings.py` (obligation → platform/AWS
+  control map), `governance/evals/` (structural golden-artifact harness), and a **consequential
+  bright-line test** (`tests/test_consequential_bright_line.py`) asserting no agent can execute an
+  irreversible commit without human approval. All governance + gateway tests pass
+  (`docs/AWS-DEPLOYMENT-VALIDATION.md`).
+- **Step-by-step AWS deployment runbooks:** `docs/AWS-DEPLOYMENT-REFERENCE.md` (master shared path —
+  CloudFront/WAF → Cognito/JWT → app → S3 WORM + KMS CMK + DynamoDB audit) and one
+  `runbooks/agent-deploy/<NN>-*.md` per agent (agent creation, tool grants, connectors, infra, smoke test).
+  Honest IaC gaps are flagged in each.
+- **GTM decks (`decks/`):** 8 per-agent go-to-market decks (problem → governed pipeline → AWS architecture
+  & traffic flow → how-to-deploy → ROI), a refreshed suite executive overview, and a board-ready CIO /
+  Director-of-Infrastructure adoption review with a user/customer/developer responsibility matrix. Figures
+  are cited in `gtm/EDU-DECK-SOURCES.md`; full speaker notes with timing + talk-track on every slide.
+; `Makefile` entrypoints.
 - **Field & GTM**: positioning, MCP-layer explainer (+ 3 gateway options), six-layer architecture,
   compliance spine, 8 offerings docs, 13 stakeholder briefings, runbooks, deployment handbook.
 - **Executive collateral**: `EDU-Agentic-AI-Suite-Executive-Overview.pptx` (+ PDF) and `EDU-One-Pager.pptx` (+ PDF).

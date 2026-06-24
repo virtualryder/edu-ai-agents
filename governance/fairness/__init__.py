@@ -7,7 +7,7 @@ and coordinating action — not from an opaque risk score that becomes a permane
 label (see governance/README.md and IES guidance). These checks support, they do
 not replace, the institution's equity review.
 
-Two lightweight, deterministic checks (no protected attributes are stored or
+Three lightweight, deterministic checks (no protected attributes are stored or
 inferred — groups are supplied by the institution's analytics layer for
 aggregate monitoring only):
 
@@ -15,11 +15,24 @@ aggregate monitoring only):
     disproportionate relative to its base rate beyond a tolerance.
   * confusion_rates: false-positive / false-negative rates for a proposed
     early-warning flag vs. realized outcomes, for ongoing monitoring.
+  * four_fifths (in disparate_impact.py): the four-fifths disparate-impact screen
+    for any flag/rank workflow — the civil-rights (Title VI / OCR) exposure when a
+    model decides whose case to surface as at-risk.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List
+
+from .disparate_impact import DisparateImpactReport, four_fifths  # noqa: F401
+
+__all__ = [
+    "representativeness_flag",
+    "RepresentativenessReport",
+    "confusion_rates",
+    "four_fifths",
+    "DisparateImpactReport",
+]
 
 
 @dataclass

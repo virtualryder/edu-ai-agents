@@ -83,7 +83,10 @@ For each, the distinction between an **option**, a **recommendation**, and an **
 | **Structural eval harness** | `evals/` | Golden-artifact regression (advising plans, intervention drafts, rubric feedback, accessible content); no API key |
 | **HITL gate tests** | `tests/test_hitl_gates.py` | Framework-enforced human approval cannot be bypassed on consequential actions |
 | **Red team** | `redteam/` | Prompt injection (incl. via student-submitted docs/inbound email), PII exfiltration, authorization bypass |
-| **Fairness** | `fairness/` | Equity/representativeness flags + false-positive/false-negative monitoring on student-success targeting |
+| **Fairness** | `fairness/` | Equity/representativeness flags + **four-fifths disparate-impact screen** (`disparate_impact.py`) for at-risk flag/rank workflows (Title VI / OCR); FP/FN monitoring |
+| **Accessibility** | `accessibility/wcag.py` | WCAG 2.1 AA pre-flight on AI-generated content (alt text, heading order, link purpose, plain-language grade) — ADA Title II deadlines 2027/2028 |
+| **Consequential bright-line** | `tests/test_consequential_bright_line.py` | Every irreversible system-of-record commit is human-gated; no agent can execute one without approval (defense-in-depth) |
+| **Control mappings** | `controls/control_mappings.py` | Each obligation (FERPA/COPPA/PPRA/IDEA-504/ADA/GLBA/Title VI/NIST AI RMF/PCI) → its concrete platform/AWS control + maturity |
 | **Student-PII masking** | `../platform_core/edu_agent_platform/pii_masker/` | FERPA/COPPA identifier masking before prompt or audit |
 | **Authorization** | `../platform_core/edu_agent_platform/mcp_gateway/` | Deny-by-default; least-privilege role intersection; purpose-of-use |
 

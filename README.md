@@ -96,11 +96,19 @@ Built in from the first commit, not added after a pilot. See `governance/README.
 | **Structural eval harness** | Golden-artifact regression for advising plans, intervention drafts, rubric-graded feedback, and accessible-content output; runs in CI with no API keys |
 | **HITL gate tests** | Framework-enforced human approval is tested, not merely documented — `governance/tests/test_hitl_gates.py` |
 | **Red team** | Prompt injection (incl. injection hidden in a student-submitted document or inbound email), PII exfiltration, and authorization-bypass scenarios — `governance/redteam/` |
-| **Fairness checks** | Equity/representativeness flags on student-success recommendations and intervention targeting, with false-positive/false-negative monitoring |
+| **Fairness checks** | Equity/representativeness flags on student-success recommendations and intervention targeting, plus the **four-fifths disparate-impact screen** (`governance/fairness/disparate_impact.py`) for any at-risk flag/rank workflow (Title VI / OCR exposure), with false-positive/false-negative monitoring |
+| **Accessibility pre-flight** | Deterministic WCAG 2.1 AA checks on AI-generated content (alt text, heading order, link purpose, plain-language grade) — ADA Title II puts AI output in scope (deadlines Apr 26 2027 / 2028); `governance/accessibility/wcag.py` |
+| **Consequential bright-line** | A test asserts every irreversible system-of-record commit is human-gated and **no agent can execute one without approval** — defense-in-depth, enforced in `governance/tests/test_consequential_bright_line.py` |
+| **Control mappings** | `governance/controls/control_mappings.py` ties each obligation (FERPA, COPPA, IDEA/504, ADA Title II, GLBA, Title VI, NIST AI RMF, PCI) to the concrete platform/AWS control and its maturity |
 
 ---
 
 ## AWS Deployment
+
+### Full step-by-step runbooks (anyone can follow them)
+- **`docs/AWS-DEPLOYMENT-REFERENCE.md`** — the master, shared, step-by-step path every agent uses, in deploy order: prerequisites → KMS CMK → VPC/endpoints → Cognito + IdP federation + JWT → CloudFront + WAF → JWT exchange/authorization → application tier (AgentCore Runtime or Step Functions native) → tools/connectors + secrets → S3 Object Lock (WORM) + append-only DynamoDB audit → observability → HITL gate → validation/smoke → teardown. Includes a request-flow walkthrough, an architecture diagram, and a layer→template map.
+- **`runbooks/agent-deploy/<NN>-*.md`** — one runbook per agent (agent creation, its exact tool grants and connectors, agent-specific infra, smoke test, teardown), building on the master reference.
+- **`docs/AWS-DEPLOYMENT-VALIDATION.md`** — the automated checks behind "validated to be deployable on AWS" (governance + gateway tests, CloudFormation parse, container contract, WORM/CMK presence).
 
 ### Deploy it yourself — three commands (container path)
 The `scripts/` directory builds and deploys an agent; `docs/DEPLOYMENT-HANDBOOK.md` is the full
@@ -168,12 +176,23 @@ edu-ai-agents/
 │
 ├── scripts/                             # build_and_push_image · package_lambdas · deploy · local_smoke (+ README)
 ├── governance/                          # EDU compliance spine + grounding, evals, HITL tests, red team, fairness
+│   ├── accessibility/                   # WCAG 2.1 AA / ADA Title II pre-flight on AI-generated content
+│   ├── fairness/                        # representativeness + four-fifths disparate-impact screen
+│   ├── controls/                        # obligation → platform/AWS control mappings (FERPA/COPPA/IDEA/ADA/...)
+│   └── evals/                           # structural golden-artifact regression (no API key)
 ├── aws-native-reference/                # AWS-native deployment (container + native) for all 8 agents
+├── runbooks/
+│   └── agent-deploy/                    # Step-by-step per-agent AWS deploy runbooks (8) + ops runbooks
+├── decks/                               # GTM: 8 agent decks + suite overview + CIO adoption review (.pptx)
+├── gtm/                                 # BATTLECARD · SOW · ROI calculator · EDU-DECK-SOURCES · DECK-CONTENT-SPEC
 ├── infra/
 │   ├── cloudformation/                  # CloudFormation quick-deploy (primary path)
 │   └── terraform/                       # Terraform parity
 ├── docs/
+│   ├── AWS-DEPLOYMENT-REFERENCE.md       # Master step-by-step shared deploy path (edge→identity→app→data)
+│   ├── AWS-DEPLOYMENT-VALIDATION.md      # Automated "deployable on AWS" validation report
 │   ├── DEPLOYMENT-HANDBOOK.md            # Console + CLI step-by-step deploy
+│   ├── SHARED-RESPONSIBILITY-MATRIX.md   # Who owns what: user / customer / developer-SI
 │   ├── WHY-THE-MCP-LAYER.md              # Account-team explainer + gateway implementation options
 │   ├── SUITE-ARCHITECTURE.md             # 6-layer reference architecture + AWS service mapping
 │   └── STAKEHOLDER-SECURITY-BRIEFINGS.md # Per-stakeholder security pitch
