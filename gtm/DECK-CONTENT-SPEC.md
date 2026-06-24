@@ -8,6 +8,8 @@
 
 ## 01 — Student & Family Services Concierge
 
+- **HEADLINE:** During the 2024-25 FAFSA cycle **~4M of 5.4M calls (≈3/4) to the federal call center went unanswered** — the sharpest proxy for routine-inquiry overload. `[gov/peer-reviewed — GAO-24-107407, 2024]`
+- **COST OF DOING NOTHING:** **~$1.2M–$1.6M/yr** in avoidable contact-handling cost (modeled: ~120k routine contacts/yr × ~60% deflectable × ~$16 phone/email→self-service cost delta). `[modeled — cost-per-contact benchmark × institutional volume]`
 - **PAIN:** Families can't find answers and staff drown in routine status inquiries — during the 2024-25 FAFSA cycle **~4M of 5.4M calls (≈3/4) to the federal call center went unanswered.** `[gov/peer-reviewed — GAO-24-107407, 2024]`
 - **WHAT WE SOLVE FOR:**
   - Routine, repetitive status/eligibility/deadline questions that crowd out complex casework.
@@ -24,6 +26,8 @@
 
 ## 02 — Personalized Tutor & Study Companion
 
+- **HEADLINE:** Harvard physics RCT: students with a purpose-built AI tutor **learned >2x as much, in less time** than an active-learning class. `[gov/peer-reviewed]`
+- **COST OF DOING NOTHING:** Matching that support with human high-impact tutoring = **~$1.2M–$2.5M+/yr for 1,000 students** ($1,200–$2,500/student/yr) — or leaving most students with no scalable, after-hours help. `[modeled — high-impact-tutoring unit cost × served population]`
 - **PAIN:** Students need help at scale outside class hours, but human tutoring is expensive and access is uneven — high-impact tutoring runs **$1,200-$2,500+ per student/year.** `[foundation/research]`
 - **WHAT WE SOLVE FOR:**
   - 24/7 on-demand help grounded in the course's own materials.
@@ -40,6 +44,8 @@
 
 ## 03 — Educator Copilot (lesson / rubric / quiz drafting, differentiation)
 
+- **HEADLINE:** Teachers work **~53 hrs/week vs. 44 for comparable adults (2024)** on ~4.4 hrs of planning time — a 9-hr gap of prep, grading, and admin. `[gov/peer-reviewed — RAND]`
+- **COST OF DOING NOTHING:** Burnout-driven turnover costs **~$11,860–$24,930 to replace one teacher** (~$2.2B/yr nationally) — a recurring bill inaction keeps paying. `[foundation/research — LPI 2024]`
 - **PAIN:** Teachers work **~53 hrs/week (vs. 44 for comparable adults, 2024)** with only ~4.4 hrs of planning time — hours lost to prep, differentiation, and LMS navigation. `[gov/peer-reviewed — RAND]`
 - **WHAT WE SOLVE FOR:**
   - First-draft lessons, rubrics, quizzes, and differentiated versions in minutes.
@@ -49,6 +55,7 @@
 - **ROI:**
   - Targets the **9-hr/week** above-peer workload (RAND). `[gov/peer-reviewed]`
   - Avoided turnover cost **~$11,860-$24,930/teacher** when burnout drops. `[foundation/research]`
+  - Teachers using AI weekly save **~5.9 hrs/week (~6 weeks/yr)** (Walton–Gallup, 2025). `[foundation/research]`
   - Vanderbilt "Amplify" runs lesson-plan/template agents in production. `[vendor]`
 - **AWS BLOCKS:** CloudFront+WAF · Cognito · AgentCore Gateway · Bedrock+Guardrails · standards/curriculum Knowledge Base · LMS connector · document templating (S3) · S3 Object Lock + DynamoDB audit.
 - **TRAFFIC FLOW:** educator prompt → CloudFront/WAF → Cognito → Gateway → standards/template retrieve → Bedrock+Guardrails draft → educator HITL approve → audit.
@@ -56,6 +63,8 @@
 
 ## 04 — Assessment, Grading & Feedback
 
+- **HEADLINE:** Teachers spend **~9.9 hrs/week grading** (95% take it home; 62% call it one of the worst parts of the job). `[sector-press — 2025 survey, flag on slide]`
+- **COST OF DOING NOTHING:** **~$4,270/instructor/yr** of recoverable grading labor (modeled: ~356 grading hrs/yr × 30% reduction × ~$40/hr loaded) — scaled across faculty, plus grading-driven attrition risk. `[modeled — grading hours × reduction × loaded rate]`
 - **PAIN:** Grading and feedback are slow and inconsistent — an estimated **~40% of teaching time** goes to grading, delaying the feedback students need. `[sector-press/estimate — flag on slide]`
 - **WHAT WE SOLVE FOR:**
   - Faster feedback turnaround, especially in large/online sections.
@@ -72,14 +81,16 @@
 
 ## 05 — Student Success & Proactive Engagement
 
-- **PAIN:** Warning signs accumulate before anyone acts — **22.4% of first-year students don't return for year two** (community colleges retain only ~55%). `[gov/peer-reviewed — NSC 2024]`
+- **HEADLINE:** **22.4% of first-year students don't return for year two** (Fall 2023 cohort; second-fall persistence 77.6%); community colleges far lower. `[gov/peer-reviewed — NSC 2025]`
+- **COST OF DOING NOTHING:** **~$5.6M/yr** in forgone recurring tuition (modeled: 2,500 first-years × 22.4% non-return = ~560 lost × ~$10k net tuition/yr); even a 1-in-10 reduction recovers ~$560K/yr, before recruitment sunk cost. `[modeled — non-return rate × net tuition × headcount]`
+- **PAIN:** Warning signs accumulate before anyone acts — **22.4% of first-year students don't return for year two** (community colleges retain far less). `[gov/peer-reviewed — NSC 2025, Fall 2023 cohort]`
 - **WHAT WE SOLVE FOR:**
   - Surfacing at-risk signals early, across SIS/LMS, instead of after withdrawal.
   - Drafting personalized, timely nudges advisors approve and send.
   - Protecting recurring tuition revenue and recruitment investment per retained student.
 - **HOW WE SOLVE IT:** retrieve risk signals (attendance, grades, engagement) via scoped connectors → analyze against an approved risk model → recommend an outreach + draft the nudge → **advisor approves the intervention (HITL; consequential by nature)** → audit who was flagged, contacted, and why.
 - **ROI:**
-  - Targets the **22.4% non-return** rate (NSC). `[gov/peer-reviewed]`
+  - Targets the **22.4% non-return** rate (NSC 2025, Fall 2023 cohort). `[gov/peer-reviewed]`
   - Each retained full-timer preserves a year of tuition (~$340-$642/credit hr) + ~$457-$2,433 recruitment cost. `[gov]` `[foundation/research]`
   - Instructor-initiated early alerts associated with **lower withdrawal, higher grades** (CCRC + peer-reviewed). `[gov/peer-reviewed]`
 - **AWS BLOCKS:** CloudFront+WAF · Cognito · AgentCore Gateway · Bedrock+Guardrails · SIS + LMS connectors · risk-model / analytics (Bedrock or SageMaker) · EventBridge triggers · Step Functions `waitForTaskToken` HITL · S3 Object Lock + DynamoDB audit.
@@ -88,6 +99,8 @@
 
 ## 06 — Academic / College / Career Pathway Navigator
 
+- **HEADLINE:** Transferring students lose **~43% of credits on average (~13 credits ≈ a semester)**; 1 in 7 lose ALL of them. `[gov/peer-reviewed — GAO, restated in CHEPP 2024]`
+- **COST OF DOING NOTHING:** Each transfer student pays **~$13,081 more (public 4-yr) / $26,396 (private 4-yr)** in added cost-of-attendance from lost credits, plus **~$15,400** in lost wages per 3-month graduation delay — and the institution loses transfer enrollment/completion. `[foundation/research — CHEPP 2024, direct]`
 - **PAIN:** Degree/transfer rules are complex and advisors are overloaded — transferring students lose **~43% of credits on average**, lengthening time-to-degree and inflating cost. `[gov/peer-reviewed — GAO; flag year]`
 - **WHAT WE SOLVE FOR:**
   - Plain-language degree audits and transfer-credit mapping.
@@ -95,7 +108,7 @@
   - Relieving advisor caseloads (~441 students/advisor at 2-yr institutions). `[foundation/research]`
 - **HOW WE SOLVE IT:** retrieve degree requirements + the student's transcript/transfer record → analyze against catalog/articulation rules → recommend next-best courses + flag credit gaps → **advisor verifies before plan is finalized (HITL for consequential planning)** → audit the audit.
 - **ROI:**
-  - Reducing the **~43% credit loss** shortens time/cost to degree (GAO). `[gov/peer-reviewed]`
+  - Reducing the **~43% credit loss** cuts the **~$13,081–$26,396** per-student added cost and shortens time-to-degree (GAO/CHEPP 2024). `[gov/peer-reviewed + foundation/research]`
   - Guided-pathways scaling lifted early-momentum credit milestones (CCRC/AACC). `[foundation/research]`
   - Illinois Tech cut credential evaluation **4-6 weeks → 1 day** on AWS. `[vendor]`
 - **AWS BLOCKS:** CloudFront+WAF · Cognito · AgentCore Gateway · Bedrock+Guardrails · SIS / degree-audit + articulation connectors · catalog/articulation Knowledge Base · Step Functions `waitForTaskToken` HITL · S3 Object Lock + DynamoDB audit.
@@ -104,6 +117,8 @@
 
 ## 07 — Document & Accessibility Services
 
+- **HEADLINE:** ADA Title II (WCAG 2.1 AA) hits **April 26 2027 (≥50k pop.) / 2028 (smaller)** and **~95% of accessibility complaints involve PDFs** — the artifact enrollment offices generate at volume. `[gov/peer-reviewed + sector-press]`
+- **COST OF DOING NOTHING:** Hard non-compliance exposure — settlements avg **~$30k**, judgments **~$85k**, class actions **~$400k**; one institution-scale remediation program ran **$665k–$815k**; a single campaign drove **2,400+ OCR complaints / 1,000+ resolution agreements**; plus federal-funding conditions. `[sector-press settlement ranges, flag on slide; gov deadlines]`
 - **PAIN:** Enrollment is document-heavy and accessibility is now legally enforced — **ADA Title II (WCAG 2.1 AA) deadlines hit April 26 2027 (≥50k pop.) / 2028 (smaller)**, and **~95% of accessibility complaints involve PDFs.** `[gov/peer-reviewed + sector-press]`
 - **WHAT WE SOLVE FOR:**
   - High-volume, seasonal document intake (transcripts, aid docs) with error/turnaround pressure.
@@ -120,6 +135,8 @@
 
 ## 08 — Operations / IT Service Desk
 
+- **HEADLINE:** **Password issues are 20–50% of all help-desk calls** and each agent-handled reset costs **~$70 in loaded labor** — a large, automatable share of volume. `[sector-press/estimate — Gartner/HDI, flag on slide]`
+- **COST OF DOING NOTHING:** **~$300K/yr** in deflectable-ticket cost (modeled: 50,000 tickets × ~30% deflectable × ~$20 agent→self-service delta), plus ~$70/reset where resets aren't automated. `[modeled — ticket volume × deflectable share × cost delta]`
 - **PAIN:** IT/admin staff drown in repetitive tickets — education cost per ticket is **~$6-$12**, and password resets alone cost **~$70 each** in labor. `[sector-press/estimate]`
 - **WHAT WE SOLVE FOR:**
   - High-volume, self-resolvable tickets (password/access, how-to, status).

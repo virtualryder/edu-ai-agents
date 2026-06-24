@@ -11,6 +11,39 @@ The result is a deployable accelerator — not a certified product — that give
 
 ---
 
+## The problem, the cost of doing nothing, and how this solves it
+
+Every institution is already paying for these problems — in staff time, lost tuition, replacement hiring, and accessibility-compliance exposure. The agents target the eight workflows where that bill is largest and most measurable. Figures below are grounded and cited in [`gtm/EDU-DECK-SOURCES.md`](gtm/EDU-DECK-SOURCES.md); dollar figures marked *modeled* show their arithmetic there. Outcomes are modeled to a reference institution, not guaranteed.
+
+| Agent | The issue today | The cost of doing nothing |
+|---|---|---|
+| **01 · Student & Family Concierge** | Families can't self-serve; routine status/aid/deadline questions bury staff. ~4M of 5.4M FAFSA-cycle calls went unanswered *(GAO, 2024)* | **~$1.2M–$1.6M/yr** avoidable contact-handling *(modeled)* |
+| **02 · Tutor & Study Companion** | No scalable, after-hours, equitable help; a purpose-built AI tutor drove **>2× learning** in an RCT *(Harvard, 2024)* | **~$1.2M–$2.5M/yr** to match with human tutoring for 1,000 students *(modeled)* |
+| **03 · Educator Copilot** | Teachers work **53 vs. 44 hrs/wk** with ~4.4 hrs to plan *(RAND, 2024)* | **$11,860–$24,930** to replace one burned-out teacher (~$2.2B/yr nationally) *(LPI, 2024)* |
+| **04 · Assessment & Feedback** | Instructors spend **~9.9 hrs/wk grading**; feedback lags *(2025 survey)* | **~$4,270/instructor/yr** recoverable grading labor *(modeled)* |
+| **05 · Student Success** | Warning signs accrue before anyone acts; **22.4% of first-years don't return** *(NSC, 2025)* | **~$5.6M/yr** forgone recurring tuition *(modeled)* |
+| **06 · Pathway Navigator** | Transfers lose **~43% of credits** on average *(GAO / CHEPP)* | **$13,081 (public) / $26,396 (private)** added cost per transfer student *(CHEPP, 2024)* |
+| **07 · Document & Accessibility** | Document-heavy intake + **ADA Title II (WCAG 2.1 AA) due Apr 26 2027/2028**; ~95% of complaints are PDFs | Settlements ~$30k · judgments ~$85k · class actions ~$400k · program-scale remediation **$665k–$815k** + federal-funding risk |
+| **08 · Operations / IT Service Desk** | Password/access tickets are **20–50% of help-desk volume**, ~$70/reset | **~$300K/yr** deflectable-ticket cost *(modeled)* |
+
+**How the suite solves it.** Each agent follows the same governed pipeline: it **retrieves** only approved institutional content and the acting user's own records through a deny-by-default authorization gateway, **analyzes** the request, **drafts or recommends** an action, **stops at a framework-enforced human gate** for anything consequential, and **writes a tamper-evident audit record** of every access. The agent deflects routine load, answers any hour in any language, and assembles the evidence — while a named human keeps every grade, enrollment change, eligibility decision, financial commitment, and privileged action. The return is the deflected volume, reclaimed staff hours, retained tuition, and a closed accessibility-compliance gap above, captured without surrendering control of a single regulated decision.
+
+### Regulatory alignment (the controls that let a CISO and privacy officer say yes)
+
+The student-privacy and accessibility obligations exist *before* the first line of agent code. They are mapped to concrete platform/AWS controls in [`governance/controls/control_mappings.py`](governance/controls/control_mappings.py) and detailed in [`governance/README.md`](governance/README.md):
+
+| Regime | What it requires | How the platform aligns |
+|---|---|---|
+| **FERPA** | Protect PII in education records; vendor acts under "school official / direct control" | Deny-by-default gateway (agent-grant ∩ user-entitlement), security-trimmed retrieval, student-PII masking at the audit boundary, tamper-evident access log |
+| **COPPA** | Heightened protection + parental consent for under-13 | Minor-aware masking, guardian-role entitlements, consent gating before family outreach |
+| **IDEA / Section 504** | Protect IEP/504 records; humans own eligibility & placement | Least-privilege access, masking, bright-line HITL gate on every consequential decision |
+| **ADA Title II / 508 / WCAG 2.1 AA** | Accessible AI output (deadlines 2027/2028) | Deterministic WCAG pre-flight on generated content; accessible-format transformation (Agent 07) |
+| **GLBA** | Safeguard student financial-aid data | KMS CMK encryption, least privilege, financial-identifier masking |
+| **Title VI / OCR** | No unjustified disparate impact | Four-fifths disparate-impact + representativeness screens on any flag/rank workflow; human equity review |
+| **NIST AI RMF 1.0** | Govern / Map / Measure / Manage AI risk | Grounding verification, hash-pinned prompt registry, evals, red-team, fairness screens, enforced HITL |
+
+---
+
 ## Positioning
 
 | What this is | What this is not |
@@ -100,6 +133,36 @@ Built in from the first commit, not added after a pilot. See `governance/README.
 | **Accessibility pre-flight** | Deterministic WCAG 2.1 AA checks on AI-generated content (alt text, heading order, link purpose, plain-language grade) — ADA Title II puts AI output in scope (deadlines Apr 26 2027 / 2028); `governance/accessibility/wcag.py` |
 | **Consequential bright-line** | A test asserts every irreversible system-of-record commit is human-gated and **no agent can execute one without approval** — defense-in-depth, enforced in `governance/tests/test_consequential_bright_line.py` |
 | **Control mappings** | `governance/controls/control_mappings.py` ties each obligation (FERPA, COPPA, IDEA/504, ADA Title II, GLBA, Title VI, NIST AI RMF, PCI) to the concrete platform/AWS control and its maturity |
+
+---
+
+## How to pitch this suite
+
+**The one-line frame.** "The agents are not the product — the governed platform that makes them FERPA/ADA-defensible, auditable, and deployable on AWS is. We start where the decision-risk is low and the visible return is high, prove the gateway/audit/human-gate in production, then expand."
+
+**Lead with the cost of doing nothing, not the technology.** Open on the institution's own version of the cost table above — unanswered contacts, grading hours, non-returning students, accessibility deadlines. The buyer feels the bill before they hear the word "agent."
+
+**Tailor the value to the person in the room:**
+
+- **CFO / VP Finance** — reclaimed staff hours, deflected contacts/tickets, retained tuition, and avoided accessibility-litigation exposure. Anchor on the *cost of doing nothing* figure and the modeled payback (typically 4–9 months at a reference institution).
+- **CIO / Director of Infrastructure** — AWS-native, per-customer VPC isolation, deploys with the runbooks in this repo, no model lock-in (LLM factory abstracts Bedrock). Hand them `decks/EDU-CIO-Adoption-Review.pptx` — it states the shortfalls and the responsibility split honestly, which builds more trust than a flawless pitch.
+- **CISO / Privacy Officer** — deny-by-default authorization, student-PII masking, framework-enforced HITL on consequential actions, tamper-evident audit, and the regulatory-alignment table above. The controls exist in code with passing tests, not as promises.
+- **Provost / Academic leadership** — the bright line: the agent never decides a grade, admission, discipline, financial aid, special-education eligibility, or placement. It augments educators and advisors; humans stay accountable.
+
+**Sequence the portfolio.** Land with the low-decision-risk, high-visibility agents (**01 Concierge, 03 Educator Copilot, 07 Document & Accessibility, 08 Service Desk**), then expand to the higher-governance agents (**04 Assessment, 05 Student Success, 06 Pathway**) once the platform is proven. Use `decks/EDU-Agentic-AI-Suite-Executive-Overview.pptx` for the portfolio story and the per-agent decks in `decks/` for the deep dive. Field collateral: `gtm/BATTLECARD.md`, `gtm/SOW-TEMPLATE.md`, `gtm/roi-calculator/`, and `SOLUTION-FIELD-GUIDE.md`.
+
+## Qualifying questions to stage an engagement
+
+Use these in discovery to scope the pilot, size the ROI, and surface the work that belongs to the customer (see `docs/SHARED-RESPONSIBILITY-MATRIX.md`):
+
+- **Pain & baseline** — Which of the eight workflows hurts most right now? What's your current volume (contacts, tickets, applications, at-risk students) and what does a unit cost you today? *(This becomes the cost-of-doing-nothing number on the proposal.)*
+- **Systems of record** — What are your SIS, LMS, ERP, and ITSM platforms, and can we reach them over PrivateLink/Direct Connect? Are there APIs, or is integration custom?
+- **Identity** — What IdP do you run (Okta, Azure AD, Google)? SAML or OIDC? Is MFA enforced? How do roles (student, guardian, educator, counselor, registrar, staff) map to IdP groups?
+- **AWS & data residency** — Do you have an AWS account/landing zone? Is Amazon Bedrock model access enabled in-region? Any data-residency or in-state requirements?
+- **Compliance posture** — Who owns the FERPA "school official" determination and the DPA? Where are you on the ADA Title II (WCAG 2.1 AA) deadline? Do you need a disparate-impact review for any at-risk flagging?
+- **Human-in-the-loop** — Who are the named approvers for each consequential action, and do they have a review queue/UI today or do we build one?
+- **Knowledge content** — Is there an approved, current corpus (policies, catalog, rubrics, runbooks) to ground retrieval, or does it need curation first?
+- **Success metrics & timeline** — What outcome would make this a win (deflection %, hours saved, retention points, turnaround), and what's the decision/pilot timeline?
 
 ---
 

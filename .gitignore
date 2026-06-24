@@ -11,8 +11,12 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+# Node
+node_modules/
 # Build / artifacts
 dist/
 build/
 _slide_review/
+_qa_view/
+_refdeck_tmp/
 *.log
