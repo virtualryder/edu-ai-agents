@@ -43,6 +43,7 @@ class PendingAction:
     summary: str
     created_at: float = field(default_factory=lambda: time.time())
     consequential: bool = True
+    task_token: Optional[str] = None  # Step Functions waitForTaskToken (native HITL path)
 
     def detail(self) -> Dict[str, Any]:
         """Exactly what the reviewer is shown before deciding."""
@@ -63,16 +64,20 @@ class ReviewDecision:
 
 
 class ReviewService:
-    def __init__(self, audit_sink=None) -> None:
+    def __init__(self, audit_sink=None, callback=None) -> None:
         self._queue: Dict[str, PendingAction] = {}
         self._audit: List[Dict[str, Any]] = []
         self._audit_sink = audit_sink  # production: append-only DynamoDB writer
+        # Resumes the Step Functions waitForTaskToken HITL state on a decision.
+        self._callback = callback or InMemoryTaskCallback()
 
     # ── queue ──────────────────────────────────────────────────────────────────
     def enqueue(self, *, agent_id: str, requester_sub: str, tool: str,
-                args: Dict[str, Any], summary: str) -> PendingAction:
+                args: Dict[str, Any], summary: str,
+                task_token: Optional[str] = None) -> PendingAction:
         item = PendingAction(id=f"REV-{uuid.uuid4().hex[:10]}", agent_id=agent_id,
-                             requester_sub=requester_sub, tool=tool, args=args, summary=summary)
+                             requester_sub=requester_sub, tool=tool, args=args, summary=summary,
+                             task_token=task_token)
         self._queue[item.id] = item
         self._record({"event": "enqueued", "item": item.id, "tool": tool,
                       "requested_by": requester_sub})
@@ -104,6 +109,8 @@ class ReviewService:
         reviewer_sub = claims.get("sub", "")
 
         if not approve:
+            if item.task_token:
+                self._callback.fail(item.task_token, "ReviewerDeclined", "reviewer declined")
             return self._reject(item, reviewer_sub, "reviewer declined", pop=True)
 
         # 2. entitlement: you may only approve what you could perform
@@ -127,8 +134,15 @@ class ReviewService:
             ttl_seconds=ttl_seconds,
         )
         self._queue.pop(item_id, None)  # one decision per item
+        if item.task_token:
+            # Resume the suspended Step Functions execution; Finalize runs the action
+            # with this verified, bound approval as the task output.
+            self._callback.succeed(item.task_token, {
+                "decision": "approved", "reviewer": reviewer_sub, "approval": approval,
+            })
         self._record({"event": "approved", "item": item.id, "tool": item.tool,
                       "reviewer": reviewer_sub, "requested_by": item.requester_sub,
+                      "task_token_resumed": bool(item.task_token),
                       "nonce": approval["binding"]["nonce"]})
         return ReviewDecision(True, "approved", approval=approval, reviewer_sub=reviewer_sub)
 
@@ -153,3 +167,38 @@ class ReviewService:
     @property
     def audit(self) -> List[Dict[str, Any]]:
         return list(self._audit)
+
+
+class InMemoryTaskCallback:
+    """Default callback for dev/test/single-process demo — records resumptions."""
+
+    def __init__(self) -> None:
+        self.succeeded: List[Any] = []
+        self.failed: List[Any] = []
+
+    def succeed(self, task_token: str, output: Dict[str, Any]) -> None:
+        self.succeeded.append((task_token, output))
+
+    def fail(self, task_token: str, error: str, cause: str) -> None:
+        self.failed.append((task_token, error, cause))
+
+
+class StepFunctionsTaskCallback:
+    """
+    Production callback: resumes a `waitForTaskToken` HITL state. On approval it
+    calls SendTaskSuccess with the signed, bound approval as the task output (the
+    Finalize state then executes the action); on decline, SendTaskFailure.
+    """
+
+    def __init__(self, client=None) -> None:
+        if client is None:  # pragma: no cover - requires AWS
+            import boto3
+            client = boto3.client("stepfunctions")
+        self._sfn = client
+
+    def succeed(self, task_token: str, output: Dict[str, Any]) -> None:
+        import json
+        self._sfn.send_task_success(taskToken=task_token, output=json.dumps(output, default=str))
+
+    def fail(self, task_token: str, error: str, cause: str) -> None:
+        self._sfn.send_task_failure(taskToken=task_token, error=str(error)[:256], cause=str(cause)[:32000])

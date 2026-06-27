@@ -75,3 +75,33 @@ def test_decision_is_audited():
     svc.decide(_claims("u-super", "ADMINISTRATOR"), item.id)
     events = {e["event"] for e in svc.audit}
     assert "enqueued" in events and "approved" in events
+
+
+# ── Step Functions waitForTaskToken callback wiring ───────────────────────────
+def test_approval_resumes_step_functions_task_token():
+    from edu_agent_platform.reviewer import InMemoryTaskCallback
+    cb = InMemoryTaskCallback()
+    svc = ReviewService(callback=cb)
+    item = svc.enqueue(agent_id=CONCIERGE, requester_sub="u-staff",
+                       tool="comms.send_message", args={"body": "hi"}, summary="Outreach",
+                       task_token="TASK-TOKEN-XYZ")
+    dec = svc.decide(_claims("u-super", "ADMINISTRATOR"), item.id)
+    assert dec.approved
+    assert len(cb.succeeded) == 1
+    token, output = cb.succeeded[0]
+    assert token == "TASK-TOKEN-XYZ"
+    assert output["decision"] == "approved" and output["approval"]["signature"]
+    assert not cb.failed
+
+
+def test_decline_fails_step_functions_task_token():
+    from edu_agent_platform.reviewer import InMemoryTaskCallback
+    cb = InMemoryTaskCallback()
+    svc = ReviewService(callback=cb)
+    item = svc.enqueue(agent_id=CONCIERGE, requester_sub="u-staff",
+                       tool="comms.send_message", args={}, summary="Outreach",
+                       task_token="TASK-TOKEN-ABC")
+    dec = svc.decide(_claims("u-super", "ADMINISTRATOR"), item.id, approve=False)
+    assert not dec.approved
+    assert cb.failed and cb.failed[0][0] == "TASK-TOKEN-ABC"
+    assert not cb.succeeded

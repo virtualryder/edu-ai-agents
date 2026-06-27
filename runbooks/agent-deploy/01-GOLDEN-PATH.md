@@ -281,3 +281,26 @@ aws cloudformation delete-stack --stack-name "edu-observability-${ENV}" --region
 - **HITL queue operations:** [`runbooks/HITL-QUEUE-OPERATIONS.md`](../HITL-QUEUE-OPERATIONS.md)
 - **Funding + pre-flight:** [`docs/AWS-FUNDING-AND-PREREQUISITES.md`](../../docs/AWS-FUNDING-AND-PREREQUISITES.md)
 - **Shared responsibility:** [`docs/SHARED-RESPONSIBILITY-MATRIX.md`](../../docs/SHARED-RESPONSIBILITY-MATRIX.md)
+
+## Appendix — unified one-shot deploy (regional + edge)
+
+Steps 3–9 above can be run as a single orchestrated command once your origin (the
+public ALB / API Gateway in front of the AgentCore runtime) exists. `make deploy-all-01`
+(→ `scripts/deploy_full.sh`) deploys the **regional** application stack in `--region`
+and then the **edge** stack (CloudFront + WAFv2) in **us-east-1** (required for the
+CloudFront ACM viewer certificate), wiring the origin into the distribution:
+
+```bash
+make deploy-all-01 \
+  TEMPLATE_BUCKET=my-cfn-bucket  LAMBDA_BUCKET=my-lambda-bucket \
+  IDP_METADATA=https://your-idp/metadata \
+  ORIGIN_DOMAIN=app-alb-123.us-west-2.elb.amazonaws.com \
+  ACM_CERT_ARN=arn:aws:acm:us-east-1:111122223333:certificate/abc \
+  LOGGING_BUCKET=my-cloudfront-logs
+```
+
+**✅ Verification gate:** the command prints the regional stack name and the CloudFront
+`DistributionDomainName`. Then complete the customer-owned hardening it lists — lock the
+origin to the distribution (Origin-Verify header / CloudFront prefix list), point Cognito
+callback URLs at the CloudFront domain, and smoke-test the authenticated endpoint through
+CloudFront (a read, a denied over-reach, a consequential action blocked then approved).

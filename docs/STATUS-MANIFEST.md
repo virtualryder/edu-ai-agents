@@ -93,3 +93,6 @@ one-command path), and **not yet Production-ready** anywhere.
 | End-to-end "one complete path" (identity → gateway → scoped token → connector → signed single-use approval → result → masked append-only audit) | **Demonstrated in-repo (Agent 01)** | `01-student-family-concierge/demo/golden_transaction.py` + `tests/test_end_to_end.py`; evidence bundle at `demo/evidence/golden_transaction_evidence.json` |
 | Production HITL reviewer (authenticate → entitlement → exact action → separation of duties → signed single-use approval → replay rejected → audit) | **Reference service + UI built** | `platform_core/edu_agent_platform/reviewer/` + `platform_core/tests/test_reviewer.py` (5 tests); `reviewer/app.py` (Streamlit) |
 | Clean-account AWS deploy of the above (live AgentCore endpoint, real IdP) | **Customer-engagement (open)** | `make golden-path-01` + `runbooks/agent-deploy/01-GOLDEN-PATH.md` |
+
+| Unified one-shot deploy (regional app + us-east-1 edge in one command) | **Target ships** | `scripts/deploy_full.sh` + `make deploy-all-01`; verified `bash -n` / `make -n` / templates parse |
+| Reviewer ↔ Step Functions `waitForTaskToken` resume (SendTaskSuccess/Failure) | **Built + tested** | `reviewer/review_service.py` (`StepFunctionsTaskCallback`); `platform_core/tests/test_reviewer.py` |

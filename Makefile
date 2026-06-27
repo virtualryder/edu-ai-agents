@@ -89,5 +89,16 @@ golden-path-01:
 	bash scripts/deploy.sh --env $(ENV) --agent-id $(AGENT_ID) --mode native --template-bucket $(TEMPLATE_BUCKET) --lambda-bucket $(LAMBDA_BUCKET) --idp-metadata $(IDP_METADATA) --region $(REGION)
 	@echo "==> Agent 01 deploy submitted. Wire the AgentCore provisioner next: runbooks/agent-deploy/01-GOLDEN-PATH.md (step 7)"
 
+deploy-all-01:
+	@test -n "$(TEMPLATE_BUCKET)" || { echo "ERROR: set TEMPLATE_BUCKET=<s3-bucket-for-cfn-templates>"; exit 2; }
+	@test -n "$(IDP_METADATA)"    || { echo "ERROR: set IDP_METADATA=<idp-saml/oidc-metadata-url>"; exit 2; }
+	@test -n "$(ORIGIN_DOMAIN)"   || { echo "ERROR: set ORIGIN_DOMAIN=<regional app public origin host>"; exit 2; }
+	@test -n "$(ACM_CERT_ARN)"    || { echo "ERROR: set ACM_CERT_ARN=<us-east-1 ACM cert arn>"; exit 2; }
+	@test -n "$(LOGGING_BUCKET)"  || { echo "ERROR: set LOGGING_BUCKET=<cloudfront access-log bucket>"; exit 2; }
+	@echo "==> unified regional + edge (us-east-1) deploy for Agent 01"
+	bash scripts/deploy_full.sh --env $(ENV) --agent-id $(AGENT_ID) --region $(REGION) --mode native \
+	  --template-bucket $(TEMPLATE_BUCKET) --lambda-bucket $(LAMBDA_BUCKET) --idp-metadata $(IDP_METADATA) \
+	  --origin-domain $(ORIGIN_DOMAIN) --acm-cert-arn $(ACM_CERT_ARN) --logging-bucket $(LOGGING_BUCKET)
+
 clean:
 	find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
