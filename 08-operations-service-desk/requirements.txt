@@ -4,7 +4,7 @@ langchain-core>=0.3.0
 streamlit>=1.36.0
 
 # LLM providers (install the one you use)
-langchain-anthropic>=0.2.0    # LLM_PROVIDER=anthropic (default)
+langchain-anthropic>=1.4.8    # LLM_PROVIDER=anthropic (default)
 # langchain-aws>=0.2.0        # LLM_PROVIDER=bedrock (in-account inference + Guardrails)
 
 # Shared platform (installed from ../platform_core in dev: pip install -e ../platform_core)
