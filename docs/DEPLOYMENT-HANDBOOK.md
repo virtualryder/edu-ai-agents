@@ -30,7 +30,7 @@ Before Step 1, have the following in place.
 
 ## Step 1 — Enable Amazon Bedrock model access (Claude)
 
-All inference runs **in-account on Amazon Bedrock (Claude models)**. After student-PII masking, the Bedrock API never carries student PII outside the customer's VPC — there is no PII egress to a third-party inference endpoint.
+All inference runs on **Amazon Bedrock (Claude models)**, reached over AWS PrivateLink (an interface VPC endpoint) rather than the public internet — Bedrock runs in the AWS service, reached privately. Direct identifiers are minimized/masked before inference, so the request leaving the VPC over the endpoint carries masked content, not raw student PII.
 
 **Console:**
 1. Open the **Amazon Bedrock** console in your target region.
@@ -285,7 +285,7 @@ See `runbooks/HITL-QUEUE-OPERATIONS.md` for queue monitoring, reviewer assignmen
 
 Work through this before any pilot with real users. Each unchecked item is a go-live blocker.
 
-- [ ] **Bedrock model access** granted; inference confirmed in-region, in-account, no PII egress (Step 1).
+- [ ] **Bedrock model access** granted; inference confirmed in-region and reached over PrivateLink (interface VPC endpoint), with identifiers masked before inference (Step 1).
 - [ ] **Guardrail attached and tested** against representative student inputs, including under-13 (COPPA) configuration (Step 2).
 - [ ] **IdP federation + role mapping** working; `custom:edu_role` populated for student/guardian/educator/counselor/administrator; age-of-majority / rights-transfer carried in claims (Step 3).
 - [ ] **KMS customer-managed key per environment**; key policy restricted to the agent role.

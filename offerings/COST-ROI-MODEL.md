@@ -73,7 +73,7 @@ A governed-platform deployment has two cost shapes: a **one-time build** (heavie
 
 | Cost element | AWS service | Driver |
 |---|---|---|
-| **Bedrock inference** | Amazon Bedrock (Claude) | Tokens per interaction × volume; in-account, no PII egress. Usually the largest variable line. |
+| **Bedrock inference** | Amazon Bedrock (Claude) | Tokens per interaction × volume; reached over PrivateLink, identifiers masked before inference. Usually the largest variable line. |
 | **AgentCore** (runtime + gateway + identity) | Bedrock AgentCore | Invocations, gateway target calls, identity token minting. (Lower in the AWS-primitives or FastMCP hosting options, which trade managed convenience for self-operated components.) |
 | **Storage** | DynamoDB (append-only audit), S3 + Object Lock (WORM docs), Knowledge Bases vector store | Audit volume, document retention, KB size |
 | **Gateway / integration** | API Gateway + Lambda (Options B/C), Step Functions (HITL `waitForTaskToken`) | Per-call authorization and orchestration |

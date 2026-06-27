@@ -52,6 +52,17 @@ def _truthy(v: Any) -> bool:
     return str(v).strip().lower() in ("1", "true", "yes")
 
 
+def _demo_mode() -> bool:
+    """True in local/dev/test; production is the secure default (no demo flag set)."""
+    if _truthy(os.getenv("AUTH_ALLOW_UNVERIFIED_CLAIMS", "")):
+        return True
+    if str(os.getenv("EXTRACT_MODE", "")).strip().lower() == "demo":
+        return True
+    if str(os.getenv("CONNECTOR_MODE", "")).strip().lower() in ("fixture", "demo"):
+        return True
+    return False
+
+
 def roles_from_claims(claims: Dict[str, Any]) -> List[str]:
     raw = claims.get(ROLE_CLAIM) or claims.get("roles") or claims.get("cognito:groups") or []
     if isinstance(raw, str):
@@ -81,6 +92,12 @@ def verify_jwt(token_or_claims: Any) -> Dict[str, Any]:
     the local demo runs without an IdP. Fails closed (raises AuthError).
     """
     if isinstance(token_or_claims, dict):
+        if not _demo_mode():
+            raise AuthError(
+                "unverified claims dict rejected outside demo mode; pass a signed "
+                "JWT (or supply identity via a verified authorizer context). Set "
+                "AUTH_ALLOW_UNVERIFIED_CLAIMS=1 only for local demo."
+            )
         if not token_or_claims.get("sub"):
             raise AuthError("claims missing 'sub' (fail-closed)")
         return token_or_claims

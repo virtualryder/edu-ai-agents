@@ -7,7 +7,8 @@ export PYTHONPATH
 export EXTRACT_MODE ?= demo
 export CONNECTOR_MODE ?= fixture
 
-.PHONY: help install test test-platform test-governance test-agents manifest demo serve clean
+.PHONY: help install test test-platform test-governance test-agents manifest demo serve clean \
+        test-provisioner golden-path-01
 
 help:
 	@echo "make install        - install platform_core (editable) + test deps"
@@ -18,6 +19,8 @@ help:
 	@echo "make manifest       - regenerate the hash-pinned prompt manifest"
 	@echo "make demo AGENT=01-student-family-concierge - run an agent's Streamlit demo"
 	@echo "make serve AGENT=01-student-family-concierge - run the AgentCore container server locally"
+	@echo "make test-provisioner - unit-test the AgentCore provisioner Lambda (no AWS)"
+	@echo "make golden-path-01 LAMBDA_BUCKET=.. TEMPLATE_BUCKET=.. IDP_METADATA=.. - one-command deploy of Agent 01 (env=test pilot, native)"
 
 install:
 	$(PY) -m pip install -e platform_core
@@ -49,6 +52,42 @@ demo:
 
 serve:
 	AGENT_DIR=$(PWD)/$(AGENT) $(PY) aws-native-reference/_shared/agentcore_server.py
+
+test-provisioner:
+	$(PY) -m pytest infra/lambdas/agentcore_provisioner -q
+
+# ---------------------------------------------------------------------------
+# Golden path: one-command deploy of Agent 01 (Student & Family Concierge).
+# Builds + uploads the agent-01 Lambda artifacts, then deploys the nested
+# quickstart stack with sensible pilot parameters (native path). The pilot
+# environment maps to the templates' test env (a valid non-prod value in every
+# template's Environment AllowedValues [dev,test,stage,prod]); override with ENV.
+#
+# Required (no live AWS without these):
+#   LAMBDA_BUCKET   - S3 bucket for packaged Lambda zips
+#   TEMPLATE_BUCKET - S3 bucket for the nested CloudFormation templates
+#   IDP_METADATA    - institution IdP SAML/OIDC metadata URL
+# Optional: REGION (us-east-1), AGENT_ID (01-concierge), ENV (test)
+# Thin wrapper over scripts/package_lambdas.sh + scripts/deploy.sh.
+# Dry-run: make -n golden-path-01 LAMBDA_BUCKET=x TEMPLATE_BUCKET=x IDP_METADATA=x
+# ---------------------------------------------------------------------------
+GP01_AGENT      := 01-student-family-concierge
+AGENT_ID        ?= 01-concierge
+ENV             ?= test
+REGION          ?= us-east-1
+LAMBDA_BUCKET   ?=
+TEMPLATE_BUCKET ?=
+IDP_METADATA    ?=
+
+golden-path-01:
+	@test -n "$(LAMBDA_BUCKET)"   || { echo "ERROR: set LAMBDA_BUCKET=<s3-bucket-for-lambda-zips>"; exit 2; }
+	@test -n "$(TEMPLATE_BUCKET)" || { echo "ERROR: set TEMPLATE_BUCKET=<s3-bucket-for-cfn-templates>"; exit 2; }
+	@test -n "$(IDP_METADATA)"    || { echo "ERROR: set IDP_METADATA=<idp-saml/oidc-metadata-url>"; exit 2; }
+	@echo "==> [1/2] packaging + uploading Agent 01 Lambda artifacts"
+	bash scripts/package_lambdas.sh --agent $(GP01_AGENT) --bucket $(LAMBDA_BUCKET) --agent-id $(AGENT_ID) --region $(REGION)
+	@echo "==> [2/2] deploying Agent 01 (env=$(ENV) pilot, native path)"
+	bash scripts/deploy.sh --env $(ENV) --agent-id $(AGENT_ID) --mode native --template-bucket $(TEMPLATE_BUCKET) --lambda-bucket $(LAMBDA_BUCKET) --idp-metadata $(IDP_METADATA) --region $(REGION)
+	@echo "==> Agent 01 deploy submitted. Wire the AgentCore provisioner next: runbooks/agent-deploy/01-GOLDEN-PATH.md (step 7)"
 
 clean:
 	find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true

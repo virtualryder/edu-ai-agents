@@ -29,6 +29,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from . import approvals as _approvals
+from . import approval_store as _approval_store
 from . import policy as _policy
 from . import tokens as _tokens
 from .audit import GatewayAuditLog
@@ -71,9 +73,13 @@ class GatewayResult:
 
 
 class MCPGateway:
-    def __init__(self, audit: Optional[GatewayAuditLog] = None, connector_mode: Optional[str] = None) -> None:
+    def __init__(self, audit: Optional[GatewayAuditLog] = None, connector_mode: Optional[str] = None,
+                 approval_store: Optional[_approval_store.ApprovalNonceStore] = None) -> None:
         self.audit = audit or GatewayAuditLog()
         self._connector_mode = connector_mode  # None -> CONNECTOR_MODE env (default fixture)
+        # Single-use approval enforcement. In-memory by default; production wires a
+        # DynamoDBApprovalNonceStore so a signed approval executes exactly once cluster-wide.
+        self._approval_store = approval_store or _approval_store.default_store()
 
     def invoke(
         self,
@@ -110,8 +116,24 @@ class MCPGateway:
                 raise PolicyDenied(decision.reason)
             return GatewayResult("DENY", tool, aid, reason=decision.reason)
 
+        # 2b. Record-level authorization: a self-scoped principal (student/guardian)
+        # may only reach their own / linked student record, even for a tool they are
+        # entitled to. Staff roles operate at institutional scope (customer can narrow
+        # to assigned students). Prevents a student passing another student's id.
+        scope_ok, scope_reason = _policy.record_scope_ok(roles, user_claims or {}, tool, args)
+        if not scope_ok:
+            aid = self.audit.record({
+                "decision": "DENY", "tool": tool, "agent_id": agent_id, "user": subject,
+                "roles": roles, "reason": scope_reason,
+            })
+            if raise_on_deny:
+                raise PolicyDenied(scope_reason)
+            return GatewayResult("DENY", tool, aid, reason=scope_reason)
+
         # 3. Human approval gate for consequential tools
-        if decision.requires_approval and not self._approval_ok(approval):
+        if decision.requires_approval and not self._approval_associated(
+            approval, agent_id=agent_id, subject=subject, tool=tool, args=args
+        ):
             aid = self.audit.record({
                 "decision": "PENDING_APPROVAL", "tool": tool, "agent_id": agent_id,
                 "user": subject, "roles": roles,
@@ -151,13 +173,39 @@ class MCPGateway:
                              requires_approval=decision.requires_approval)
 
     # ── helpers ───────────────────────────────────────────────────────────────
-    @staticmethod
-    def _approval_ok(approval: Optional[Dict[str, Any]]) -> bool:
-        """A valid approval carries a verified reviewer identity and an approve decision."""
+    def _approval_associated(
+        self, approval: Optional[Dict[str, Any]], *,
+        agent_id: str, subject: str, tool: str, args: Optional[Dict[str, Any]],
+    ) -> bool:
+        """
+        Is this approval valid for THIS exact transaction?
+
+        Production: a signed, transaction-bound, single-use approval (see
+        approvals.sign_approval) verified against the actual agent/user/tool/args,
+        expiry, and a one-time nonce, so it can't be replayed or retargeted.
+
+        Demo/dev: the legacy "{approved, reviewer.sub}" record is accepted ONLY
+        when a demo flag is set (CONNECTOR_MODE=fixture/demo, EXTRACT_MODE=demo, or
+        AUTH_ALLOW_UNVERIFIED_CLAIMS=1). In production an unsigned approval is
+        rejected -- the gate cannot be passed with a hand-built dict.
+        """
         if not approval:
             return False
-        reviewer = approval.get("reviewer") or {}
-        return bool(approval.get("approved")) and bool(reviewer.get("sub"))
+        if approval.get("binding") or approval.get("signature"):
+            # Verify the signature, binding, and expiry...
+            ok, _reason = _approvals.verify_approval(
+                approval, agent_id=agent_id, subject=subject, tool=tool, args=args,
+                seen_nonces=None,
+            )
+            if not ok:
+                return False
+            # ...then enforce single-use via the (durable in prod) nonce store.
+            nonce = (approval.get("binding") or {}).get("nonce")
+            return self._approval_store.consume(nonce)
+        if _approvals._demo_mode():
+            reviewer = approval.get("reviewer") or {}
+            return bool(approval.get("approved")) and bool(reviewer.get("sub"))
+        return False
 
     def _invoke_connector(self, decision: "_policy.PolicyDecision", args: Dict[str, Any]) -> Any:
         from edu_agent_platform.connectors import get_connector

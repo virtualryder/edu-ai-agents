@@ -1,0 +1,58 @@
+# Security Policy
+
+## What this project is
+
+The EDU AI Agent Suite is an **independent, open-source reference accelerator** for building governed AI agents on AWS. It is **not** an AWS service, an official AWS solution, or a turnkey production system, and it is provided **without warranty** of any kind (see `LICENSE`). It is intended for discovery, architecture design, demonstrations, and scoped pilots. Production deployments require customer-specific identity integration, connectors, security hardening, accessibility conformance testing, operations, and legal/privacy review.
+
+This policy covers vulnerabilities in the **code and configuration in this repository**. It does **not** cover the security of Amazon Bedrock, AWS, or any other third-party service — report those through the respective vendor's disclosure channel.
+
+## Scope
+
+In scope:
+
+- The reference platform code under `platform_core/`.
+- The governance and evaluation code under `governance/`.
+- The per-agent reference implementations (`01-*` through `08-*`).
+- Infrastructure-as-code under `infra/` (CloudFormation and Terraform reference templates).
+- Build, packaging, and deployment scripts under `scripts/`.
+
+Out of scope:
+
+- Vulnerabilities in AWS services, Amazon Bedrock, or other third-party platforms and dependencies (report upstream).
+- Findings that require a misconfigured or unhardened deployment that this repository explicitly documents as the customer's responsibility (for example, demo-mode defaults, placeholder secrets, or the single-NAT reference simplification).
+- Theoretical findings without a demonstrated, reproducible impact on the reference code.
+
+## Reporting a vulnerability
+
+Please report suspected vulnerabilities **privately**. Do not open a public issue, pull request, or discussion for a security report.
+
+Use either channel:
+
+- Open a **private security advisory** on this repository's GitHub ("Security" tab -> "Report a vulnerability"), or
+- Email the maintainers at **security@example.org** *(placeholder — replace with the project's real security contact before distribution)*.
+
+Please include:
+
+- A description of the issue and the affected component(s) and path(s).
+- Reproduction steps or a proof of concept.
+- The potential impact as you assess it.
+- Any suggested remediation.
+
+## Coordinated disclosure
+
+We follow a coordinated-disclosure model. We ask that you give us a reasonable opportunity to investigate and remediate before any public disclosure, and that you avoid accessing, modifying, or exfiltrating data that is not yours while researching. We will credit reporters who request it once a fix is available.
+
+## Response targets
+
+These are good-faith targets for an open-source reference project, not contractual commitments:
+
+| Stage | Target |
+|---|---|
+| Acknowledge receipt | Within 5 business days |
+| Initial assessment / triage | Within 10 business days |
+| Status updates | At least every 2 weeks until resolution |
+| Fix or documented mitigation | Prioritized by severity |
+
+## Supported versions
+
+This is a reference accelerator, not a released product with long-term support branches. Security fixes are applied to the **default branch (`main`) only**. Consumers who fork or vendor this code are responsible for tracking changes and applying fixes to their own copies. There is no back-porting to prior commits or tags.

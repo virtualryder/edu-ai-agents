@@ -14,7 +14,7 @@
 | Tool/integration | **AgentCore Gateway + AgentCore Identity** | Deny-by-default authorization, per-call scoped tokens, HITL gate for write tools |
 | Tool/integration | **API Gateway + Lambda** | Connector functions for SIS/CRM/scheduling (Option B primitives also build the gateway here) |
 | Data/semantic | **Bedrock Knowledge Bases** (OpenSearch Serverless / Aurora pgvector) | Grounded public answers over approved institutional content |
-| Models | **Bedrock (Claude)** | In-account inference; no PII egress after masking |
+| Models | **Bedrock (Claude)** | Reached over PrivateLink (interface VPC endpoint), not the public internet; direct identifiers masked before inference |
 | Models | **Bedrock Guardrails** | PII denial, age-appropriate filters, topic blocking — see §4 |
 | Data | **DynamoDB** (append-only) + **S3 Object Lock** | FERPA-aligned disclosure audit; finalized snapshots |
 | Identity | **Cognito / IAM Identity Center** | Federates the institution's Okta/Entra/Google Workspace/AD |

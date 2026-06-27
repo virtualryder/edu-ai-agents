@@ -1,6 +1,8 @@
 # Solution Field Guide
 ### For SI Sales and Solution Architects — Qualify, Land with 01, Expand to the Portfolio
 
+> **What this is:** an independent, open-source reference accelerator for discovery, architecture design, demos, and scoped pilots on AWS. **What it is not:** an AWS service or official AWS solution, a compliance certification (FERPA/COPPA/WCAG), a penetration-tested system, or a turnkey production deployment. Production requires customer-specific identity integration, connectors, security hardening, accessibility conformance testing, operations, and legal/privacy review. If you work at AWS, obtain internal approval before using it as a customer-facing asset.
+
 > This is the working field guide for the people in front of the customer: the systems-integrator account team and the solution architects. It gives you the qualification questions, the discovery script, the pain-to-agent map, the gateway-first message, and the "land with the Concierge, expand to the portfolio" motion that walks an institution up the maturity ladder. It is deliberately practical — say-this, ask-this, map-this — and it points to the deeper collateral when you need it.
 
 ---

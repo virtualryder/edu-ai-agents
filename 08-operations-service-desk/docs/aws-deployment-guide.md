@@ -16,7 +16,7 @@ Agent 08 maps onto the suite's six-layer architecture. The services below are na
 | Agent runtime (native) | **AWS Step Functions + Lambda** | Native rebuild; `waitForTaskToken` HITL gate; deterministic core |
 | MCP authorization gateway | **Amazon Bedrock AgentCore Gateway** | One target per system of record; deny-by-default; HITL enforcement |
 | Federated identity + scoped tokens | **AgentCore Identity + Cognito / IAM Identity Center** | IdP federation; short-lived per-call credentials; role/group membership |
-| LLM inference | **Amazon Bedrock (Claude models)** | In-account; no PII egress after masking |
+| LLM inference | **Amazon Bedrock (Claude models)** | Reached over PrivateLink (interface VPC endpoint), not the public internet; direct identifiers masked before inference |
 | Content safety + PII controls | **Amazon Bedrock Guardrails** | PII denial; prohibited-behavior topic filters; age-appropriate filters for student-facing tickets |
 | Knowledge base / search | **Amazon Bedrock Knowledge Bases**; **Amazon Q Business** | Document-level-permissioned IT and staff-policy retrieval; broad enterprise staff search |
 | Safe diagnostics | **AWS Lambda** | Non-mutating diagnostic functions (ping, link check, service status) |

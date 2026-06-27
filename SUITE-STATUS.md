@@ -1,5 +1,7 @@
 # Suite Status
 
+> **What this is:** an independent, open-source reference accelerator for discovery, architecture design, demos, and scoped pilots on AWS. **What it is not:** an AWS service or official AWS solution, a compliance certification (FERPA/COPPA/WCAG), a penetration-tested system, or a turnkey production deployment. Production requires customer-specific identity integration, connectors, security hardening, accessibility conformance testing, operations, and legal/privacy review. If you work at AWS, obtain internal approval before using it as a customer-facing asset.
+
 **Phase:** Foundation + Demonstrated/Deployable-by-design.
 
 ## Maturity
@@ -35,31 +37,20 @@ live connectors, WCAG 2.2 AA conformance, penetration test) is the engagement.
   (`docs/AWS-DEPLOYMENT-VALIDATION.md`).
 - **Step-by-step AWS deployment runbooks:** `docs/AWS-DEPLOYMENT-REFERENCE.md` (master shared path —
   CloudFront/WAF → Cognito/JWT → app → S3 WORM + KMS CMK + DynamoDB audit) and one
-  `runbooks/agent-deploy/<NN>-*.md` per agent (agent creation, tool grants, connectors, infra, smoke test).
-  Honest IaC gaps are flagged in each.
-- **GTM decks (`decks/`):** 8 per-agent go-to-market decks (problem → governed pipeline → AWS architecture
-  & traffic flow → how-to-deploy → ROI), a refreshed suite executive overview, and a board-ready CIO /
-  Director-of-Infrastructure adoption review with a user/customer/developer responsibility matrix. Figures
-  are cited in `gtm/EDU-DECK-SOURCES.md`; full speaker notes with timing + talk-track on every slide.
-; `Makefile` entrypoints.
-- **Field & GTM**: positioning, MCP-layer explainer (+ 3 gateway options), six-layer architecture,
-  compliance spine, 8 offerings docs, 13 stakeholder briefings, runbooks, deployment handbook.
-- **Executive collateral**: `EDU-Agentic-AI-Suite-Executive-Overview.pptx` (+ PDF) and `EDU-One-Pager.pptx` (+ PDF).
+  `runb
+## June 2026 — security & candor hardening pass
+Following an external CISO-style review (validated against the code in `docs/PRODUCTION-READINESS-ACTION-PLAN.md`):
+- **Closed two real bypasses in code:** `verify_jwt` now rejects unverified claims dicts outside demo mode (`platform_core/edu_agent_platform/auth.py`), and consequential approvals are signed, transaction-bound (agent/user/tool/args), single-use, and expiring (`mcp_gateway/approvals.py`) — proven by `test_auth.py` + `test_approvals.py` (46 tests pass total).
+- **Hardened IaC:** Bedrock IAM scoped to model ARNs; MFA/callback/egress/WORM-retention parameterized; audit-immutability defense-in-depth documented.
+- **Hardened CI:** cfn-lint is blocking; added bandit, pip-audit, detect-secrets, checkov, SBOM, and Dependabot.
+- **Corrected messaging** across README + 19 docs (no "compliant with law" / "PII never egresses VPC" / AgentCore-"deployed" overclaims), added a seller disclaimer and root `SECURITY.md`.
+- **Remaining work** (golden path, AgentCore provisioner, record-level authz, Cedar/Verified Permissions, customer assurance package) is staged with verification steps in `docs/PRODUCTION-READINESS-ACTION-PLAN.md`.
 
-## Test evidence (no API key, fixtures)
-- `platform_core/tests` + `governance/tests`: **26 passed** (gateway intersection, HITL enforcement across
-  all agents, masking, grounding, red team, fairness, prompt-manifest).
-- 8 agent graph suites (run per-agent — each ships an identically-named `agent` package), incl. live-path
-  tests over real HTTP for 01/04/05: 01:8 - 02:5 - 03:5 - 04:7 - 05:8 - 06:4 - 07:4 - 08:6 = **47 passed**.
-- Canvas LTI role-mapping: **7 passed**. Suite total green: **80 tests** (26 + 47 + 7), no API key.
-- AgentCore container: `/ping` healthy, `/invocations` runs an agent end-to-end with full audit trail.
-- `make test` runs platform+governance once, then each agent in its own process; CI mirrors this.
-
-## Marquee proof points (web-verified)
-UA-Pulaski Tech (94.5% adoption / +253% admissions engagement), Highline College (75% reduction),
-UT Austin UT Sage (Bedrock stack), Illinois Tech (4-6 weeks to ~1 day).
-
-## Next
-- Extend the live-connector path to the higher-governance agents (04, 05) and a live LMS (Canvas LTI) reference.
-- Per-agent tailored handbook PDFs; 5-slide customer teaser.
-- CI workflow wiring (`make test` + `prompt_registry --update` drift check).
+## June 2026 — golden path (Agent 01) scaffolding landed
+The first golden-path build (Agent 01) is in-repo and verified (59 tests pass; 9 CFN templates parse):
+- **Record-level authorization** (`policy.record_scope_ok` + gateway): a student/guardian reaches only their own/linked record, even on an entitled tool.
+- **Durable single-use approval store** (`mcp_gateway/approval_store.py`): in-memory default + DynamoDB conditional-write impl so a signed approval executes exactly once cluster-wide.
+- **Edge** (`infra/cloudformation/edge.yaml`: CloudFront + WAFv2 + ACM + security headers) and **observability** (`observability.yaml`: alarms + dashboard + SNS).
+- **AgentCore provisioner** (`infra/lambdas/agentcore_provisioner/`: custom-resource Lambda, fails closed, 7 unit tests) wired via quickstart service-token params.
+- **One-command** `make golden-path-01` + the end-to-end `runbooks/agent-deploy/01-GOLDEN-PATH.md`.
+Remaining golden-path work (live IdP federation, real SIS/LMS connector, ephemeral-account CI deploy) is customer-engagement scope — tracked in `docs/PRODUCTION-READINESS-ACTION-PLAN.md`.

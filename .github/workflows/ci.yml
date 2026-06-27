@@ -69,5 +69,7 @@ jobs:
       - name: Lint CloudFormation templates
         run: |
           pip install cfn-lint
-          # Reference/accelerator templates: lint for syntax; warnings allowed.
-          cfn-lint infra/cloudformation/*.yaml || true
+          # BLOCKING: lint failures fail the build. A small, documented allow-list
+          # of pre-existing/intentional findings lives in .cfnlintrc (which also
+          # sets the template glob). Any NEW finding fails CI.
+          cfn-lint

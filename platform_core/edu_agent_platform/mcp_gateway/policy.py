@@ -277,3 +277,49 @@ def decide(agent_id: str, user_roles: Iterable[str], tool: str) -> PolicyDecisio
 # Consequential tools additionally require a verified human approval at runtime.
 # See mcp_gateway/gateway.py for enforcement and audit.py for the trail.
 
+
+# ── Record-level authorization ────────────────────────────────────────────────
+# Authorization above answers "may this agent+user call this tool?". It does NOT
+# answer "may this user reach THIS student's record?". RECORD_SCOPED_TOOLS operate
+# on one identifiable student; a self-scoped principal (a student, or a guardian)
+# may only target their own — or, for a guardian, an explicitly linked — student.
+# Staff roles operate at institutional scope here; a customer narrows that to
+# assigned students/sections by populating an entitlement claim (see docs).
+RECORD_SCOPED_TOOLS: FrozenSet[str] = frozenset({
+    "sis.get_student_profile", "sis.get_schedule", "sis.check_application_status",
+    "sis.get_attendance", "sis.get_grades", "sis.get_graduation_requirements",
+    "sis.get_transfer_credits", "sis.update_enrollment_record", "crm.get_case",
+})
+_RECORD_ARG_KEYS = ("student_id", "record_id", "student", "sid", "case_student_id")
+_SELF_SCOPED_ROLES: FrozenSet[str] = frozenset({"STUDENT", "GUARDIAN"})
+
+
+def _target_record_id(args: Dict[str, object]) -> str:
+    for k in _RECORD_ARG_KEYS:
+        v = (args or {}).get(k)
+        if v:
+            return str(v)
+    return ""
+
+
+def record_scope_ok(user_roles: Iterable[str], claims: Dict[str, object],
+                    tool: str, args: Dict[str, object]) -> Tuple[bool, str]:
+    """
+    Return (ok, reason). Enforces that a self-scoped principal can only reach their
+    own / linked student record on a record-scoped tool. Open (ok=True) for tools
+    that aren't record-scoped or calls that name no specific record.
+    """
+    if tool not in RECORD_SCOPED_TOOLS:
+        return True, "not record-scoped"
+    target = _target_record_id(args or {})
+    if not target:
+        return True, "no explicit record target"
+    roleset = set(user_roles)
+    if roleset - _SELF_SCOPED_ROLES:  # any staff role -> institutional scope
+        return True, "staff institutional scope"
+    own = str(claims.get("student_id") or claims.get("sub") or "")
+    linked = {str(s) for s in (claims.get("students") or [])}
+    if target in ({own} | linked):
+        return True, "record owner / linked"
+    return False, (f"record-scope: principal may not access record {target!r} "
+                   f"(self-scoped to own/linked records)")

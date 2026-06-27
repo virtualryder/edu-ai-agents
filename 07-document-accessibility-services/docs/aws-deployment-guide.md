@@ -18,7 +18,7 @@
 | Notifications | **Amazon EventBridge** | Missing-information and review-needed events |
 | Immutable retention | **Amazon S3 + Object Lock (COMPLIANCE mode)** | Original submission **and** extracted version, retained on the institution's schedule |
 | Translation & speech | **Amazon Translate**, **Amazon Polly**, **Amazon Transcribe** | Multilingual variants, text-to-speech audio, captions/transcripts |
-| Inference | **Amazon Bedrock (Claude models)** | In-account; no PII egress after masking |
+| Inference | **Amazon Bedrock (Claude models)** | Reached over PrivateLink (interface VPC endpoint), not the public internet; direct identifiers masked before inference |
 | Content safety + PII | **Amazon Bedrock Guardrails** | PII denial, age-appropriate filters (heightened for minors), prohibited-behavior topic filters |
 | Authorization gateway | **Amazon Bedrock AgentCore Gateway** + **AgentCore Identity** | Deny-by-default; least-privilege intersection; short-lived per-call tokens; HITL gate |
 | Audit | **Amazon DynamoDB** (append-only) + **AWS CloudTrail** | Who accessed what, on what basis, who approved — FERPA disclosure recordkeeping |

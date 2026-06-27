@@ -1,0 +1,342 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Edge stack (Layer 5: CloudFront + WAFv2 + ACM/TLS + Route 53).
+  REFERENCE / ACCELERATOR TEMPLATE. The customer must review, harden, and validate
+  this against their own network and content-delivery standards before production
+  use. This is the public front door for the shared request path - it terminates
+  TLS, applies WAF managed rule groups + a rate-based rule, caches STATIC assets
+  only (never authenticated agent responses, which carry student data), and
+  forwards the API/auth path to the origin (the ALB / AgentCore / authorizer entry).
+  The app tier stays in private subnets (network.yaml) with NO public inbound.
+  #
+  # =========================================================================
+  # REQUEST PATH (viewer -> WAF -> CloudFront -> origin)
+  #   Internet
+  #     -> Route 53 (optional custom domain alias, Condition HasHostedZone)
+  #     -> CloudFront distribution (ACM viewer cert, TLS 1.2_2021 minimum)
+  #     -> AWS WAFv2 WebACL (CLOUDFRONT scope) evaluates managed rules +
+  #        rate-based rule; blocks or forwards
+  #     -> Origin (OriginDomainName: the ALB / AgentCore / authorizer endpoint)
+  #   Static asset paths are cached; the /invocations* API path is
+  #   pass-through (CachingDisabled) and forwards Authorization so the
+  #   downstream identity (Cognito) + authorizer (Layer 3) make the decision.
+  #
+  # =========================================================================
+  # us-east-1 CONSTRAINT (MUST READ)
+  #   - A WAFv2 WebACL with Scope: CLOUDFRONT MUST be created in us-east-1.
+  #   - The ACM certificate referenced by a CloudFront viewer cert
+  #     (AcmCertificateArn) MUST also be in us-east-1.
+  #   Therefore THIS ENTIRE STACK MUST BE DEPLOYED IN us-east-1, regardless of
+  #   the region the rest of the suite (network/security/data/gateway/agent)
+  #   runs in. CloudFront is global; only its control-plane home is us-east-1.
+  # =========================================================================
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+    Description: Deployment environment. Drives resource naming and tagging.
+
+  OriginDomainName:
+    Type: String
+    Description: >
+      Origin domain name CloudFront forwards to - the ALB / AgentCore Runtime /
+      authorizer endpoint (e.g. edu-agents-prod-alb-123.us-west-2.elb.amazonaws.com).
+      Do NOT include a scheme or path. The origin must accept HTTPS from CloudFront
+      and should be locked down so it only accepts traffic from this distribution
+      (custom Origin-Verify header and/or AWS-managed CloudFront prefix list on the
+      ALB security group - customer-owned hardening, see comments below).
+
+  AcmCertificateArn:
+    Type: String
+    # us-east-1: a CloudFront viewer certificate MUST be an ACM cert in us-east-1.
+    Description: >
+      ARN of the ACM certificate for the custom domain, used as the CloudFront
+      viewer certificate. MUST be issued/imported in us-east-1 (CloudFront
+      requirement). Covers DomainName (and any alternate names).
+
+  DomainName:
+    Type: String
+    Default: ""
+    Description: >
+      Custom domain (CNAME / alternate domain name) served by the distribution,
+      e.g. agents.example.edu. Leave blank to serve only on the default
+      *.cloudfront.net name (no alias / no Route 53 record).
+
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: >
+      Optional Route 53 hosted zone ID for DomainName. When set (together with a
+      non-blank DomainName) the stack creates an A-record alias to the
+      distribution. Leave blank to manage DNS outside this stack.
+
+  WafRateLimit:
+    Type: Number
+    Default: 2000
+    MinValue: 100
+    MaxValue: 2000000000
+    Description: >
+      Rate-based rule limit: max requests allowed from a single source IP within
+      the WAFv2 5-minute sliding window before the IP is blocked. AWS WAF evaluates
+      this over a trailing 5-minute window. Tune to the institution's expected peak
+      legitimate per-IP rate (NAT'd campus networks may need a higher value).
+
+  LoggingBucketName:
+    Type: String
+    Description: >
+      Name of an EXISTING S3 bucket for CloudFront standard access logs. Must have
+      ACLs enabled (Object Ownership = BucketOwnerPreferred) because CloudFront
+      standard logging delivers via the awslogsdelivery account ACL. Feeds the
+      same observability spine as observability.yaml (Layer 10). Customer-owned -
+      this stack does not create it (the WORM bucket in data.yaml blocks ACLs and
+      is unsuitable for log delivery).
+
+  PriceClass:
+    Type: String
+    Default: PriceClass_100
+    AllowedValues: [PriceClass_100, PriceClass_200, PriceClass_All]
+    Description: >
+      CloudFront price class (edge-location footprint). PriceClass_100 is the
+      cheapest (NA + EU); widen for global student populations.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasDomainName: !Not [!Equals [!Ref DomainName, ""]]
+  # Route 53 alias only when BOTH a hosted zone and a domain name are supplied.
+  HasHostedZone: !And
+    - !Not [!Equals [!Ref HostedZoneId, ""]]
+    - !Not [!Equals [!Ref DomainName, ""]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # --- AWS WAFv2 WebACL (CLOUDFRONT scope -> MUST be created in us-east-1) -----
+  # Evaluated on every request before CloudFront forwards to the origin. AWS
+  # managed rule groups blunt common web attacks; the rate-based rule blunts
+  # volumetric / brute-force from a single source IP.
+  EdgeWebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "edu-agents-${Environment}-edge-acl"
+      # Scope CLOUDFRONT is only valid in us-east-1 - see the us-east-1 constraint
+      # in the template description.
+      Scope: CLOUDFRONT
+      # WAF descriptions disallow parentheses - keep to the allowed char set.
+      Description: !Sub "EDU AI Agent Suite edge WebACL ${Environment} - managed rules + rate limit"
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "edu-agents-${Environment}-edge-acl"
+      Rules:
+        # AWS Core rule set - broad protection against OWASP-style common attacks.
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 0
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+        # Known bad inputs - exploit/CVE request patterns.
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSet
+        # Amazon IP reputation list - known malicious / bot source IPs.
+        - Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputationList
+        # Rate-based rule - block a single source IP exceeding WafRateLimit
+        # requests in the trailing 5-minute window. This rule has a real Block
+        # action (the managed groups above use OverrideAction: None and apply
+        # their own internal actions).
+        - Name: RateLimitPerIp
+          Priority: 3
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref WafRateLimit
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitPerIp
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  # --- Response headers policy (security headers on every viewer response) -----
+  SecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub "edu-agents-${Environment}-security-headers"
+        Comment: HSTS, nosniff, frame-deny, strict referrer policy for the edge.
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            # 2 years, include subdomains, preload-eligible.
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+
+  # --- CloudFront distribution -----------------------------------------------
+  # Origin = OriginDomainName (the ALB / AgentCore / authorizer entry). The app
+  # tier stays private; this distribution is the only public surface.
+  EdgeDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "EDU AI Agent Suite edge (${Environment})"
+        PriceClass: !Ref PriceClass
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        # Custom domain alias only when DomainName is provided.
+        Aliases:
+          !If
+            - HasDomainName
+            - [!Ref DomainName]
+            - !Ref AWS::NoValue
+        WebACLId: !GetAtt EdgeWebAcl.Arn
+        Logging:
+          Bucket: !Sub "${LoggingBucketName}.s3.amazonaws.com"
+          IncludeCookies: false
+          Prefix: !Sub "cloudfront/edu-agents-${Environment}/"
+        Origins:
+          - Id: AgentOrigin
+            DomainName: !Ref OriginDomainName
+            CustomOriginConfig:
+              # Origin is HTTPS-only; CloudFront -> origin uses TLS 1.2.
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+              HTTPSPort: 443
+            # ORIGIN LOCKDOWN (customer hardening): add a custom Origin-Verify
+            # header here (OriginCustomHeaders) whose secret value the ALB
+            # listener rule requires, and/or restrict the ALB security group to
+            # the com.amazonaws.global.cloudfront.origin-facing managed prefix
+            # list, so the origin only accepts traffic from this distribution.
+        DefaultCacheBehavior:
+          TargetOriginId: AgentOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          # Default behavior is the dynamic/API path: caching DISABLED so no
+          # authenticated agent response (student data) is ever cached, and the
+          # full method set incl. POST (for /invocations) is allowed.
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          # CachingDisabled (AWS managed) - id is a well-known constant.
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          # AllViewerExceptHostHeader (AWS managed) - forwards Authorization +
+          # all viewer headers (except Host) / query / cookies to the origin.
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+          ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+        CacheBehaviors:
+          # Static assets only - safe to cache (no student data on these paths).
+          - PathPattern: "/static/*"
+            TargetOriginId: AgentOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            # CachingOptimized (AWS managed) - caches static content.
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+          # API invocations - explicit pass-through (caching disabled, POST).
+          - PathPattern: "/invocations*"
+            TargetOriginId: AgentOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+        ViewerCertificate:
+          # us-east-1: AcmCertificateArn MUST be an ACM cert in us-east-1.
+          # When no custom domain is set, fall back to the default CloudFront cert.
+          !If
+            - HasDomainName
+            - AcmCertificateArn: !Ref AcmCertificateArn
+              SslSupportMethod: sni-only
+              MinimumProtocolVersion: TLSv1.2_2021
+            - CloudFrontDefaultCertificate: true
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  # --- Optional Route 53 alias record (Condition-gated) -----------------------
+  EdgeAliasRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: HasHostedZone
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt EdgeDistribution.DomainName
+        # Z2FDTNDATAQYW2 is the fixed, global CloudFront hosted-zone ID for alias
+        # records (the same constant for every CloudFront distribution).
+        HostedZoneId: Z2FDTNDATAQYW2
+        EvaluateTargetHealth: false
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  DistributionDomainName:
+    Description: CloudFront distribution domain name (*.cloudfront.net). Point DNS / Cognito callback URLs here (or use DomainName).
+    Value: !GetAtt EdgeDistribution.DomainName
+
+  DistributionId:
+    Description: CloudFront distribution ID.
+    Value: !Ref EdgeDistribution
+
+  WebAclArn:
+    Description: WAFv2 WebACL ARN associated with the distribution (CLOUDFRONT scope, us-east-1).
+    Value: !GetAtt EdgeWebAcl.Arn

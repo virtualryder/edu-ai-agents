@@ -26,12 +26,33 @@ Parameters:
 
   WormRetentionDays:
     Type: Number
-    Default: 2555
+    # SECURITY: NO DEFAULT - this is a REQUIRED, forced decision. There is no
+    # universally-correct retention period: it varies by record type (enrollment
+    # docs vs disciplinary vs special-ed vs financial-aid vs audit snapshots), by
+    # state records-retention schedule, and by program. The customer must
+    # consciously choose it. In COMPLIANCE mode (below) this window CANNOT be
+    # shortened or removed by ANY principal, including the account root, until it
+    # elapses - so choosing too long is operationally and financially binding.
     MinValue: 1
     Description: >
-      Object Lock COMPLIANCE retention in days (default ~7 years). Customer
-      sets this to their records-retention schedule. COMPLIANCE-mode retention
-      cannot be shortened or removed by any principal, including root.
+      REQUIRED. Object Lock default retention in days. There is no default -
+      retention varies by record type, U.S. state records-retention schedule, and
+      program, so the customer MUST choose it deliberately against their schedule.
+      In COMPLIANCE mode this retention cannot be shortened or removed by any
+      principal, including root, until it elapses.
+
+  WormMode:
+    Type: String
+    Default: GOVERNANCE
+    AllowedValues: [GOVERNANCE, COMPLIANCE]
+    Description: >
+      Object Lock retention mode for the WORM bucket. GOVERNANCE (default) lets
+      privileged principals with s3:BypassGovernanceRetention adjust/remove locks
+      - appropriate for non-prod. COMPLIANCE makes objects truly immutable for the
+      retention window for EVERY principal including root and is IRREVERSIBLE for
+      locked objects. Production records/audit-snapshot stores should set
+      COMPLIANCE - but only once the retention window is confirmed, because it
+      cannot be undone.
 
   AuditAccessPrincipalArn:
     Type: String
@@ -62,6 +83,31 @@ Resources:
   # dynamodb:PutItem ONLY - never UpdateItem or DeleteItem. No other principal
   # is granted mutate access. The customer must confirm this invariant in their
   # IAM review and keep finalized snapshots in the WORM bucket below.
+  # ===========================================================================
+  # AUDIT IMMUTABILITY - DEFENSE IN DEPTH (recommended hardening)
+  # The append-only guarantee here currently rests on IAM OMISSION: the agent
+  # role (security.yaml) is granted dynamodb:PutItem ONLY - never UpdateItem or
+  # DeleteItem - and no other principal is granted mutate access. DynamoDB has
+  # no table-level resource policy that can DENY UpdateItem/DeleteItem, so there
+  # is no in-template "explicit deny" mechanism to add at the table itself; the
+  # control is necessarily principal-side. To strengthen this beyond IAM
+  # omission, layer the following defense-in-depth controls (tracked elsewhere):
+  #   (a) CONDITIONAL WRITE - the audit writer must call PutItem with a
+  #       ConditionExpression of attribute_not_exists(pk) (and sk) so a write can
+  #       never silently OVERWRITE an existing audit record. Enforced in the app
+  #       (app/audit.py) - handled by a separate task; documented here as the
+  #       intended invariant.
+  #   (b) ROLE SEPARATION - a dedicated audit-WRITER role (PutItem-only) distinct
+  #       from an audit-READER role (GetItem/Query-only, see AuditReadOnlyPolicy
+  #       below). The agent never holds read or mutate-beyond-append on audit.
+  #   (c) PERIODIC EXPORT - export/snapshot the audit table to the S3 Object Lock
+  #       (WORM) bucket below on a schedule, giving a tamper-evident immutable
+  #       copy independent of DynamoDB and any IAM drift.
+  #   NOTE on explicit deny: DynamoDB exposes no resource-based policy on the
+  #   table, so the "deny Update/Delete" intent cannot be encoded as a table
+  #   policy; enforce it via SCPs / permission boundaries on the writer role and
+  #   the conditional-write + WORM-export controls above.
+  # ===========================================================================
   AuditTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -166,7 +212,11 @@ Resources:
         ObjectLockEnabled: Enabled
         Rule:
           DefaultRetention:
-            Mode: COMPLIANCE
+            # SECURITY: mode is parameterized (WormMode). COMPLIANCE is
+            # irreversible for locked objects; production should use COMPLIANCE,
+            # non-prod may use GOVERNANCE. Retention is the REQUIRED
+            # WormRetentionDays parameter (no default - a forced decision).
+            Mode: !Ref WormMode
             Days: !Ref WormRetentionDays
       VersioningConfiguration:
         Status: Enabled

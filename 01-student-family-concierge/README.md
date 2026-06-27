@@ -46,7 +46,7 @@ The Concierge is a **best-first-deployment-tier** agent alongside the Educator C
 | Conversational channels | **Amazon Connect** (voice / SMS / chat) + web/mobile front end |
 | Agent runtime | **Amazon Bedrock AgentCore Runtime** (container) or **Step Functions + Lambda** (native) |
 | Grounded answers | **Amazon Bedrock Knowledge Bases** over approved institutional content (OpenSearch Serverless / Aurora pgvector) |
-| Inference | **Amazon Bedrock (Claude)** — in-account, no PII egress |
+| Inference | **Amazon Bedrock (Claude)** — reached over PrivateLink (interface VPC endpoint), not the public internet; identifiers masked before inference |
 | Content safety | **Amazon Bedrock Guardrails** (PII denial, age-appropriate filters for minors) |
 | Authenticated tools | **API Gateway + Lambda** behind the **AgentCore Gateway**, calling SIS/CRM connectors |
 | Case creation / escalation | **AWS Step Functions** (`waitForTaskToken` where a human gate applies) |

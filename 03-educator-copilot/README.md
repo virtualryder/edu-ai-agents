@@ -3,7 +3,7 @@
 
 > **The educator's drafting and workflow partner: it retrieves approved curriculum and recent class results, drafts lessons / rubrics / quizzes / differentiated versions, and places a DRAFT in the LMS for the educator to approve — it never auto-publishes to students.**
 
-The Educator Copilot is a **best-first-deployment-tier** agent (with the Concierge 01, Operations Service Desk 08, and Document & Accessibility Services 07): mature workflows, comparatively low decision-risk because nothing reaches students without educator approval, and measurable time-returned-to-instruction. It consolidates two production use cases — **instructional drafting/differentiation** and **LMS workflow execution** — into one copilot.
+The Educator Copilot is a **best-first-deployment-tier** agent (with the Concierge 01, Operations Service Desk 08, and Document & Accessibility Services 07): mature workflows, comparatively low decision-risk because nothing reaches students without educator approval, and measurable time-returned-to-instruction. It consolidates two production-oriented reference workflows — **instructional drafting/differentiation** and **LMS workflow execution** — into one copilot.
 
 ---
 

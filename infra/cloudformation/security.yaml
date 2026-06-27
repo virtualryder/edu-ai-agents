@@ -42,6 +42,44 @@ Parameters:
       to scope the agent role's write-only append permission. Optional at
       create time; the master template wires it.
 
+  BedrockModelArns:
+    Type: CommaDelimitedList
+    # SECURITY: scopes bedrock:InvokeModel* to specific foundation-model /
+    # inference-profile ARNs instead of "*". The default covers the Claude
+    # Sonnet + Haiku families for THIS region using the standard
+    # arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/... pattern
+    # plus the cross-region inference-profile ARNs. Customers MUST pin the EXACT
+    # model and inference-profile ARNs they are approved to use (do not leave the
+    # wildcard suffix broader than required); add/remove entries per their model
+    # allow-list and region. Inference-profile invocation also requires invoke
+    # permission on the underlying foundation model in each member region.
+    Default: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-*,arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-*,arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-7-sonnet-*,arn:aws:bedrock:us-east-1:*:inference-profile/us.anthropic.claude-3-5-sonnet-*,arn:aws:bedrock:us-east-1:*:inference-profile/us.anthropic.claude-3-5-haiku-*,arn:aws:bedrock:us-east-1:*:inference-profile/us.anthropic.claude-3-7-sonnet-*"
+    Description: >
+      Comma-delimited list of Bedrock foundation-model and inference-profile ARNs
+      the agent role may invoke. Replaces a Resource "*" grant. Customers MUST
+      pin the exact model / inference-profile ARNs (and region) they are approved
+      to use.
+
+  CognitoMfaConfiguration:
+    Type: String
+    Default: OPTIONAL
+    AllowedValues: [OPTIONAL, ON]
+    Description: >
+      Cognito user-pool MFA mode. PRODUCTION MUST set this to ON, and MFA must
+      also be enforced at the authoritative IdP for privileged roles (educator /
+      counselor / administrator) - Cognito MFA here is defense-in-depth, not the
+      sole control. Default OPTIONAL is for demo only.
+
+  AppCallbackUrls:
+    Type: CommaDelimitedList
+    # PRODUCTION: set to the institution's real HTTPS redirect URI(s). The
+    # localhost default below is for local demo ONLY and MUST be replaced before
+    # any non-demo deployment. Do not ship localhost callback URLs to production.
+    Default: "https://localhost/callback"
+    Description: >
+      OAuth callback (redirect) URLs for the user-pool app client. Replace the
+      demo localhost value with the institution's production HTTPS redirect URIs.
+
 # ---------------------------------------------------------------------------
 # Conditions
 # ---------------------------------------------------------------------------
@@ -172,7 +210,10 @@ Resources:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: !Sub "edu-agents-${Environment}"
-      MfaConfiguration: "OPTIONAL"
+      # SECURITY: MFA mode is parameterized (CognitoMfaConfiguration). Production
+      # MUST deploy with ON and additionally enforce MFA at the authoritative IdP
+      # for privileged roles. Default OPTIONAL is for demo only.
+      MfaConfiguration: !Ref CognitoMfaConfiguration
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: true
       Policies:
@@ -183,6 +224,18 @@ Resources:
           RequireNumbers: true
           RequireSymbols: true
       Schema:
+        # ===================================================================
+        # SECURITY - NON-SELF-ASSERTED IDENTITY CLAIMS (REQUIRED IN PRODUCTION)
+        # The custom attributes below (edu_role, under_13, rights_transferred,
+        # and any age signal) drive authorization and COPPA/FERPA data handling.
+        # In production they MUST be sourced from the authoritative IdP / SIS and
+        # mapped from verified IdP assertions ONLY (see AttributeMapping below).
+        # They MUST be treated as non-self-asserted: the app and the Layer 3
+        # gateway must NEVER trust a client-set or user-mutable value for these.
+        # Mutable: true here is so the IdP/SIS sync can update them - it is NOT a
+        # license for end users to set their own role, under-13 status, or
+        # rights-transfer state. Lock down write access accordingly.
+        # ===================================================================
         # custom:edu_role carries student | guardian | educator | counselor | administrator
         - Name: edu_role
           AttributeDataType: String
@@ -237,8 +290,10 @@ Resources:
           - HasIdp
           - [InstitutionIdP]
           - [COGNITO]
-      CallbackURLs:
-        - https://localhost/callback
+      # SECURITY: redirect URIs come from the AppCallbackUrls parameter. The
+      # default is localhost for local demo ONLY and MUST be replaced with the
+      # institution's production HTTPS redirect URIs before any prod deployment.
+      CallbackURLs: !Ref AppCallbackUrls
       ExplicitAuthFlows:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
@@ -284,7 +339,13 @@ Resources:
                   - bedrock:InvokeModel
                   - bedrock:InvokeModelWithResponseStream
                   - bedrock:ApplyGuardrail
-                Resource: "*"
+                # SECURITY: scoped to the BedrockModelArns parameter instead of
+                # "*". Customers should pin the EXACT foundation-model and
+                # inference-profile ARNs they are approved to use (see the
+                # BedrockModelArns parameter). Note: invoking a cross-region
+                # inference profile also requires invoke permission on the
+                # underlying foundation-model ARN in each member region.
+                Resource: !Ref BedrockModelArns
         - PolicyName: AppendOnlyAudit
           PolicyDocument:
             Version: "2012-10-17"

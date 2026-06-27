@@ -101,7 +101,7 @@ The retrieval substrate that grounds agent outputs:
 
 ## Layer 5 — Models and Deterministic Services
 
-- **Amazon Bedrock (Claude models)**: primary inference; runs in-account; the Bedrock API never carries student PII outside the customer's VPC after masking.
+- **Amazon Bedrock (Claude models)**: primary inference; reached over AWS PrivateLink (an interface VPC endpoint) rather than the public internet — Bedrock runs in the AWS service, reached privately. Direct identifiers are minimized/masked before inference, so requests leaving the VPC over the endpoint carry masked content rather than raw student PII.
 - **Bedrock Guardrails**: configured at the stack level (`infra/cloudformation/security.yaml`); enforces PII denial, age-appropriate content for student-facing surfaces (heightened for minors and under-13 per COPPA), prohibited-behavior blocking (e.g., completing a prohibited assessment), and topic filters. Runs on every LLM call automatically — supplementing, never replacing, Layer 3 authorization.
 - **Deterministic services**: not everything needs an LLM. Degree-audit, graduation, and prerequisite rules (Pathway Navigator); rubric score calculation (Assessment); completeness validation (Document Services); and prohibited-language detection are deterministic Python — fast, testable, and consistent enough to include in validation evidence. Predictive models (e.g., early-warning) run in **Amazon SageMaker AI** where prediction is justified, and are kept separate from the explanation and human-decision stages.
 
@@ -160,7 +160,7 @@ graph TB
     end
 
     subgraph "Layer 5 — Models"
-        BR[Bedrock — Claude<br/>in-account inference]
+        BR[Bedrock — Claude<br/>reached over PrivateLink]
         GR[Bedrock Guardrails<br/>PII · age-appropriate · topic filters]
         DET[Deterministic Services<br/>degree rules · rubric calc · validation]
         SM[SageMaker AI<br/>early-warning models]
@@ -202,7 +202,7 @@ graph TB
 | Agent orchestration | **AWS Step Functions** | Parallel fan-out for multi-agent; audit in CloudWatch |
 | MCP authorization gateway | **Amazon Bedrock AgentCore Gateway** | Target registration; authorizer; deny-by-default (Options B/C: API Gateway+Lambda, or FastMCP) |
 | Federated identity + scoped tokens | **AgentCore Identity + Amazon Cognito / IAM Identity Center** | IdP federation (Okta/Entra/Google Workspace/AD); short-lived credentials; student/guardian/educator/counselor/admin role mapping |
-| LLM inference | **Amazon Bedrock (Claude models)** | In-account; no PII egress; model-access policies |
+| LLM inference | **Amazon Bedrock (Claude models)** | Reached over PrivateLink (interface VPC endpoint), not the public internet; identifiers masked before inference; model-access policies |
 | Content safety + PII controls | **Amazon Bedrock Guardrails** | PII denial; age-appropriate filters for minors; prohibited-behavior topic filters |
 | Knowledge base / vector search | **Amazon Bedrock Knowledge Bases** | OpenSearch Serverless or Aurora pgvector; segmented by institution/course/role |
 | Governed analytics | **S3 + Glue + Lake Formation + Redshift** | Fine-grained, role-aware student-data lake |

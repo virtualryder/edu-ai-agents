@@ -20,3 +20,5 @@ _slide_review/
 _qa_view/
 _refdeck_tmp/
 *.log
+# Claude Code local settings (may contain tokens)
+.claude/settings.local.json

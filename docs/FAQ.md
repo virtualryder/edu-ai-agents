@@ -18,7 +18,7 @@ A: The suite uses a four-rung maturity ladder: **Documented** (architecture and 
 A: University research administration, advancement/fundraising, and specialized laboratory agents. The four emerging/roadmap use cases: longitudinal learner-success orchestrator, precision-learning agent teams, cross-system autonomous institutional operations, and dialogue-based assessment/simulations. The suite also does not include penetration testing (separately contracted), legal opinions, or compliance certifications of any kind.
 
 **Q: Is this a SaaS product I can hand to a customer unchanged?**
-A: No. It is a governed accelerator — a credible, compliant starting point that a delivery team operationalizes for a specific institution. The institution retains FERPA/COPPA/PPRA compliance accountability, IdP integration and role mapping, connector validation against live systems, Bedrock Guardrail configuration for its population, and WCAG 2.2 AA conformance testing of its deployed surfaces. The distinction is explicit in every SOW and in the suite README. This transparency is a credibility asset with CISOs and procurement teams, not a liability.
+A: No. It is a governed accelerator — a credible, compliance-aligned starting point that a delivery team operationalizes for a specific institution. The institution retains FERPA/COPPA/PPRA compliance accountability, IdP integration and role mapping, connector validation against live systems, Bedrock Guardrail configuration for its population, and WCAG 2.2 AA conformance testing of its deployed surfaces. The distinction is explicit in every SOW and in the suite README. This transparency is a credibility asset with CISOs and procurement teams, not a liability.
 
 ---
 

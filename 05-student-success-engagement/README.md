@@ -3,7 +3,7 @@
 
 > **Agent 05 of the EDU AI Agent Suite.** A high-value, **higher-governance** agent: it touches student outcomes directly, so it carries stronger evaluation, educator oversight, bias testing, evidence retention, and escalation than the best-first agents. It is *not* a first deployment — land with Agents 01, 03, 08, and 07, then expand here once the platform's gateway, audit, and HITL framework are proven in production.
 
-This agent consolidates two production use cases — **UC6 Student Success** (assemble warning-sign evidence, propose an intervention plan, open and track a case) and **UC12 Proactive Engagement** (event-driven, template-based outreach across voice, SMS, and email). They share the same governed substrate — the student-data lake, the MCP authorization gateway, the HITL gate, and the append-only audit trail — and the same architectural discipline: **the prediction stage, the explanation stage, and the human-decision stage are kept separate and are never collapsed into one.**
+This agent consolidates two production-oriented reference workflows — **UC6 Student Success** (assemble warning-sign evidence, propose an intervention plan, open and track a case) and **UC12 Proactive Engagement** (event-driven, template-based outreach across voice, SMS, and email). They share the same governed substrate — the student-data lake, the MCP authorization gateway, the HITL gate, and the append-only audit trail — and the same architectural discipline: **the prediction stage, the explanation stage, and the human-decision stage are kept separate and are never collapsed into one.**
 
 ---
 

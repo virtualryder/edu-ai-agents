@@ -92,12 +92,12 @@ Mermaid view of the full six-layer suite is in [`docs/SUITE-ARCHITECTURE.md`](SU
 | 2 | KMS customer-managed keys | `security.yaml` (`EnvKmsKey`) | **Shipped** (one CMK per env; see gap on per-domain split) |
 | 3 | Network — VPC, subnets, VPC endpoints | `network.yaml` | **Shipped** |
 | 4 | Identity — Cognito + IdP federation | `security.yaml` (`UserPool`, `UserPoolIdentityProvider`, `IdentityPool`) | **Shipped** |
-| 5 | Edge — CloudFront + WAF + ACM + Route 53 | — | **GAP — not in IaC** (see §5) |
+| 5 | Edge — CloudFront + WAF + ACM + Route 53 | `edge.yaml` (standalone; deploy in **us-east-1**) | **Shipped** (not in quickstart — needs us-east-1 + ACM; see §5) |
 | 6 | JWT exchange / authorization | `agentcore-gateway.yaml` (`AuthorizerParam`) + gateway logic | **Partial** (authorizer config in SSM; edge authorizer is a gap) |
 | 7 | Application tier (runtime) | `agent-service.yaml` (native + container paths) | **Shipped** (container path uses custom resource — see §7) |
 | 8 | Tools / connectors / secrets | `agentcore-gateway.yaml` (targets) + Secrets Manager (manual) | **Partial** (targets as SSM/custom resource; secrets manual) |
 | 9 | Data plane — audit / HITL / WORM | `data.yaml` | **Shipped** |
-| 10 | Observability — CloudWatch / CloudTrail / OTel | — (CloudTrail referenced; no alarm template) | **GAP — alarms not in IaC** (see §10) |
+| 10 | Observability — CloudWatch / CloudTrail / OTel | `observability.yaml` (alarms + dashboard + SNS; standalone) | **Shipped** (alarms/dashboard; CloudTrail + OTel still manual; see §10) |
 | 11 | Human-in-the-loop gate | `agent-service.yaml` (`waitForTaskToken`) + `data.yaml` (HITL table) | **Shipped** (reviewer UI is a gap — see §11) |
 | 12 | Validation & smoke tests | `scripts/local_smoke.sh`, Handbook steps 7–9 | **Shipped** |
 | 13 | Teardown | (manual) | See §13 |
@@ -161,7 +161,7 @@ Mermaid view of the full six-layer suite is in [`docs/SUITE-ARCHITECTURE.md`](SU
 
 **Why / the security control.** The agent runtime lives in **private subnets only** (`MapPublicIpOnLaunch: false`). Inbound to the runtime is impossible from the internet; ingress arrives only via the edge/identity layers above. Bedrock inference goes through a **VPC interface endpoint** so student data (post-masking) never traverses a public Bedrock endpoint. S3 and DynamoDB use **gateway endpoints** (no NAT cost, no internet path) for the WORM store and audit/HITL tables.
 
-**Traffic flow.** Edge/identity (public) → application tier (private subnet) → Bedrock VPC endpoint (in-account inference) and gateway endpoints (audit/WORM/connectors). Outbound to live SoR connectors that are internet-facing goes via NAT (HTTPS 443 only, per the runtime security group egress rule).
+**Traffic flow.** Edge/identity (public) → application tier (private subnet) → Bedrock interface VPC endpoint (PrivateLink, not the public internet) and gateway endpoints (audit/WORM/connectors). Outbound to live SoR connectors that are internet-facing goes via NAT (HTTPS 443 only, per the runtime security group egress rule).
 
 **What ships.** `network.yaml` provisions:
 - A VPC (`10.40.0.0/16` default) with **2 public + 2 private subnets** across 2 AZs.
@@ -206,12 +206,23 @@ The gateway reads `custom:edu_role` as the `roleClaim` (see `agentcore-gateway.y
 
 **Traffic flow.** Internet → Route 53 (custom domain) → CloudFront (ACM TLS) → WAF web ACL evaluation → CloudFront origin (the identity/authorizer/app entry). Static assets served from cache; dynamic/auth requests pass through to Cognito (Step 4) and the authorizer (Step 6).
 
-> **Gaps / what you must add — this layer does not ship as IaC.** There is **no CloudFront, WAF, ACM, or Route 53 template** in `infra/cloudformation/`. The only public ingress that ships is the **ALB** in `demo-in-a-box.yaml` (a POC-only Fargate demo with optional HTTPS via a passed `CertificateArn`) — that is a demo, not the production edge. You must author the edge yourself:
-> 1. **ACM certificate** for the custom domain (in `us-east-1` for CloudFront).
-> 2. **CloudFront distribution** with the app entry as origin, a cache policy that caches static paths only and forwards `Authorization` for dynamic paths, and **Origin Access** locked so the origin only accepts CloudFront.
-> 3. **AWS WAF web ACL** associated to the distribution: AWS managed rule groups (Core, Known Bad Inputs, IP Reputation), a **rate-based rule**, and geo/IP match rules if the institution requires them.
-> 4. **Route 53** alias record → CloudFront; update the Cognito app-client `CallbackURLs` (Step 4) to this domain.
-> The shipped `network.yaml` public subnets exist for NAT and a load-balanced ingress, but no edge is wired to them. `docs/AWS-FUNDING-AND-PREREQUISITES.md` lists the ALB/Route 53/IGW prerequisites for the demo path; treat production edge as a customer build.
+> **What ships — `edge.yaml` (standalone, deploy in us-east-1).** `infra/cloudformation/edge.yaml` provisions the production edge:
+> - **AWS WAFv2 WebACL** (`Scope: CLOUDFRONT`) with the three AWS managed rule groups (`AWSManagedRulesCommonRuleSet`, `AWSManagedRulesKnownBadInputsRuleSet`, `AWSManagedRulesAmazonIpReputationList`) plus a **rate-based rule** (`WafRateLimit`, default 2000 / 5-min / IP). Metrics + sampled requests on.
+> - **CloudFront distribution** with `OriginDomainName` (the ALB / AgentCore / authorizer entry) as a `https-only` origin, viewer cert via `AcmCertificateArn` (**must be in us-east-1**), `MinimumProtocolVersion: TLSv1.2_2021`, the WebACL associated, a **response-headers policy** (HSTS, X-Content-Type-Options nosniff, `X-Frame-Options: DENY`, `strict-origin-when-cross-origin`), access logging to `LoggingBucketName`, the default behavior **caching-disabled** with the full method set incl. **POST** (for `/invocations`), `/static/*` cached, `/invocations*` explicitly pass-through.
+> - **Route 53** alias record (Condition-gated on `HostedZoneId` + `DomainName`).
+> - Outputs `DistributionDomainName` + `WebAclArn`. Origin lockdown (Origin-Verify header / CloudFront prefix list on the ALB SG) is documented in-template as customer hardening.
+>
+> **Deploy (must be us-east-1 — CLOUDFRONT-scope WAF and the CloudFront viewer ACM cert both live there):**
+> ```bash
+> aws cloudformation deploy \
+>   --region us-east-1 \
+>   --template-file infra/cloudformation/edge.yaml \
+>   --stack-name edu-agents-<env>-edge \
+>   --parameter-overrides Environment=<env> \
+>     OriginDomainName=<alb-or-agentcore-dns> AcmCertificateArn=<us-east-1-acm-arn> \
+>     DomainName=agents.example.edu HostedZoneId=<zone-id> LoggingBucketName=<log-bucket>
+> ```
+> **Why it is not in `quickstart.yaml`:** the edge requires a **us-east-1** deployment and a pre-issued **ACM certificate in us-east-1**, which a one-shot regional quickstart cannot satisfy. Deploy it as a standalone stack and then update the Cognito app-client `CallbackURLs` (Step 4) to the edge domain. The shipped `network.yaml` public subnets exist for NAT and a load-balanced ingress; `demo-in-a-box.yaml`'s ALB remains a POC-only demo, not the production edge.
 
 ---
 
@@ -308,11 +319,26 @@ A tool call is allowed only if **both** the agent is granted it **and** the acti
 
 **Traffic flow.** Every layer emits: WAF logs (edge), Cognito sign-in events (identity), gateway decision logs + audit `PutItem` (Layer 3), Lambda/Step Functions/AgentCore logs (app tier), Bedrock + Guardrail metrics (models). Alarms fire to the customer's pager; audit queries serve the privacy office.
 
-> **Gaps / what you must add — no alarm template ships.** CloudTrail is a **prerequisite you enable manually** (AWS-FUNDING doc, BLOCKER) and is referenced by `security.yaml`'s description, but there is **no CloudFormation template that provisions CloudWatch dashboards or alarms.** The runbooks assume alarms exist; you must author them. At minimum:
-> - Alarms: HITL queue depth (DynamoDB `status-index` PENDING count), approval latency, Lambda/Step Functions error rate, DynamoDB throttling, Bedrock Guardrail block rate, gateway deny rate, Bedrock quota utilization.
-> - Log groups with ≥365-day retention; S3 access logging on the WORM bucket; AWS Config for drift detection if SOC 2 / FedRAMP evidence is needed.
-> - Wire OTel export from the runtime to CloudWatch / X-Ray.
-> Alarm thresholds, pager routing, and retention windows are explicitly customer-owned (`runbooks/README.md`).
+> **What ships — `observability.yaml` (standalone alarms + dashboard + SNS).** `infra/cloudformation/observability.yaml` provisions:
+> - A **KMS-encrypted SNS `AlarmTopic`** (env CMK via `KmsKeyArn`, else `alias/aws/sns`) with a Condition-gated email subscription (`AlarmEmail`) and a topic policy allowing CloudWatch to publish. Subscribe pager/Slack/PagerDuty here.
+> - **CloudWatch alarms** on both custom and AWS metrics, each → `AlarmTopic`: tool-authorization **denial spike**, **PII-masking failures > 0**, **HITL backlog age** + **approval timeout**, **grounding-verification failures**, **Bedrock throttling** + **p99 latency**, **Lambda Errors** on all four agent functions (`core`/`policy-gate`/`hitl-enqueue`/`finalize`) + **core Throttles**, **DynamoDB audit SystemErrors** (PutItem) + **WriteThrottleEvents**, and a Condition-gated **AWS/Billing EstimatedCharges** cost guard (`EnableCostAlarm`, us-east-1 only).
+> - A **CloudWatch dashboard** summarizing all of the above.
+> - **Custom metric contract (the app must `put_metric_data`)** under namespace `CustomMetricNamespace` (default `EduAgentSuite`), Dimension `Environment=<env>`: `ToolAuthorizationDenied`, `PiiMaskingFailure`, `ApprovalBacklogAge`, `HitlApprovalTimeout`, `GroundingFailure`, `AuditWriteFailure`. The exact names + semantics are documented at the top of the template.
+>
+> **Deploy (standalone, same region as the agent stacks; set `EnableCostAlarm=true` only when in us-east-1 with billing alerts on):**
+> ```bash
+> aws cloudformation deploy \
+>   --region <region> \
+>   --template-file infra/cloudformation/observability.yaml \
+>   --stack-name edu-agents-<env>-observability \
+>   --parameter-overrides Environment=<env> KmsKeyArn=<env-cmk-arn> AlarmEmail=ops@example.edu \
+>     CoreFunctionName=edu-agents-<env>-01-concierge-core \
+>     PolicyGateFunctionName=edu-agents-<env>-01-concierge-policy-gate \
+>     HitlEnqueueFunctionName=edu-agents-<env>-01-concierge-hitl-enqueue \
+>     FinalizeFunctionName=edu-agents-<env>-01-concierge-finalize \
+>     AuditTableName=edu-agents-<env>-audit
+> ```
+> **Why it is not in `quickstart.yaml`:** the alarms reference the per-agent Lambda function names (which vary by `AgentId`) and the cost alarm is us-east-1-only, so it deploys cleanly as a standalone stack layered on top of the per-agent runtime. Still customer-owned: **CloudTrail** (manual BLOCKER, AWS-FUNDING doc), log-group ≥365-day retention, S3 access logging, AWS Config for drift, OTel→CloudWatch/X-Ray export, and tuning every threshold + pager routing (`runbooks/README.md`).
 
 ---
 
@@ -379,12 +405,12 @@ A tool call is allowed only if **both** the agent is granted it **and** the acti
 [ ]  2. KMS CMK(s) — security.yaml (split per-domain if required)
 [ ]  3. Network — network.yaml (add Secrets Manager/Logs/KMS endpoints; NAT-per-AZ for prod)
 [ ]  4. Identity — Cognito + IdP federation (map IdP groups → custom:edu_role; wire COPPA claims)
-[ ]  5. Edge — CloudFront + WAF + ACM + Route 53   *** YOU MUST BUILD — not in IaC ***
+[ ]  5. Edge — edge.yaml (CloudFront + WAFv2 + ACM + Route 53)   *** deploy STANDALONE in us-east-1 (not in quickstart) ***
 [ ]  6. JWT exchange / authorizer — gateway authorizer config (+ custom-resource Lambda or Option B authorizer)
 [ ]  7. Application tier — agent-service.yaml (native ready; container needs registration custom resource)
 [ ]  8. Tools/connectors — register targets; create CMK-encrypted Secrets Manager secrets (manual)
 [ ]  9. Data plane — data.yaml (audit / HITL / WORM)
-[ ] 10. Observability — CloudWatch alarms + dashboards   *** YOU MUST BUILD — not in IaC ***; CloudTrail on
+[ ] 10. Observability — observability.yaml (alarms + dashboard + SNS)   *** deploy STANDALONE (not in quickstart) ***; CloudTrail on (manual)
 [ ] 11. HITL gate — ships; build the reviewer UI handoff
 [ ] 12. Validate — local_smoke.sh; ALLOW read; DENY over-reach; consequential blocked; Handbook Step 9 checklist
 [ ] 13. (later) Teardown — reverse order; respect Retain + Object Lock
@@ -412,4 +438,4 @@ A request enters **CloudFront** (TLS terminated by ACM, custom domain via Route 
 - Per-agent deploy runbooks: [`runbooks/agent-deploy/`](../runbooks/agent-deploy/)
 - Build & deploy scripts: [`scripts/README.md`](../scripts/README.md)
 - Operations runbooks (HITL queue, incident, DR, degradation): [`runbooks/README.md`](../runbooks/README.md)
-- IaC: `infra/cloudformation/` (`quickstart.yaml`, `network.yaml`, `security.yaml`, `data.yaml`, `agentcore-gateway.yaml`, `agent-service.yaml`); Terraform parity in `infra/terraform/`
+- IaC: `infra/cloudformation/` — quickstart-nested: `quickstart.yaml`, `network.yaml`, `security.yaml`, `data.yaml`, `agentcore-gateway.yaml`, `agent-service.yaml`; standalone layers: `edge.yaml` (deploy in us-east-1), `observability.yaml`; Terraform parity in `infra/terraform/`

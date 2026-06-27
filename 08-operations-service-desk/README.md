@@ -1,7 +1,7 @@
 # Operations Service Desk
 ### IT support and internal staff knowledge & administrative workflow — a bounded agent that diagnoses, drafts, and initiates, while a named human owns every privileged remediation and every consequential administrative action
 
-> **Agent 08 consolidates two production use cases — UC10 IT Service Desk and UC11 Staff Knowledge & Admin Workflow — into one governed agent for the people who keep an institution running.** It is a best-first deployment: broad visibility, comparatively low decision-risk, mature workflows, and a deflection/cycle-time return that is straightforward to measure. The defining design choice is a **bright line between diagnostic actions and privileged remediation**, and a hard separation of tool sets by administrative domain so retrieval and action never cross a user's entitlements.
+> **Agent 08 consolidates two production-oriented reference workflows — UC10 IT Service Desk and UC11 Staff Knowledge & Admin Workflow — into one governed agent for the people who keep an institution running.** It is a best-first deployment: broad visibility, comparatively low decision-risk, mature workflows, and a deflection/cycle-time return that is straightforward to measure. The defining design choice is a **bright line between diagnostic actions and privileged remediation**, and a hard separation of tool sets by administrative domain so retrieval and action never cross a user's entitlements.
 
 ---
 

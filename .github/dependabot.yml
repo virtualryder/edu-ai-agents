@@ -1,0 +1,56 @@
+version: 2
+updates:
+  # Python dependencies across the platform core, governance, and each agent.
+  - package-ecosystem: "pip"
+    directory: "/platform_core"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/01-student-family-concierge"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/02-tutor-study-companion"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/03-educator-copilot"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/04-assessment-grading-feedback"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/05-student-success-engagement"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/06-pathway-navigator"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/07-document-accessibility-services"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+  - package-ecosystem: "pip"
+    directory: "/08-operations-service-desk"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "python"]
+
+  # GitHub Actions workflow dependencies.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "github-actions"]

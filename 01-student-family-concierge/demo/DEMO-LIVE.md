@@ -76,7 +76,7 @@ The connector forwards `Authorization: Bearer <KIND>_API_TOKEN` for the referenc
 the gateway's short-lived AgentCore Identity token is forwarded instead of a static token — see
 `platform_core/edu_agent_platform/mcp_gateway/tokens.py` and `docs/WHY-THE-MCP-LAYER.md`.
 
-### Bedrock (in-account inference, no student-PII egress)
+### Bedrock (reached over PrivateLink; identifiers masked before inference)
 
 ```bash
 export LLM_PROVIDER=bedrock

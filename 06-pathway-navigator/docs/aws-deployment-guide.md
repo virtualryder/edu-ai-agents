@@ -11,7 +11,7 @@ This guide covers the Navigator-specific deployment. The platform-wide, empty-ac
 
 | Architecture role | AWS service | Navigator notes |
 |---|---|---|
-| Conversation & explanation | **Amazon Bedrock (Claude)** | In-account; explains audits and pathways; never authoritative for rules |
+| Conversation & explanation | **Amazon Bedrock (Claude)** | Reached over PrivateLink (interface VPC endpoint), not the public internet; explains audits and pathways; never authoritative for rules |
 | Content safety | **Amazon Bedrock Guardrails** | PII denial; age-appropriate filters (heightened for minors); topic filters |
 | **Deterministic rules engine** | **AWS Lambda** | Degree-audit, graduation, prerequisite, and transfer-articulation logic — Layer 5 deterministic services; **not the LLM** |
 | Program/course/prerequisite/credential/career model | **Amazon Neptune** or **Amazon Aurora** | Graph (Neptune) for relationship-heavy prerequisite/articulation/career adjacency, or relational (Aurora) where preferred |

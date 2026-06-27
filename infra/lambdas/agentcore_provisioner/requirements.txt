@@ -1,0 +1,8 @@
+# AgentCore provisioner custom-resource Lambda.
+#
+# boto3 is present in the AWS Lambda Python runtime, but the bedrock-agentcore-control
+# service model is newer than some bundled boto3 builds. Pin a version known to
+# carry the AgentCore control-plane client so create_gateway / create_agent_runtime
+# resolve. Confirm the minimum against your account's available API (see the
+# `# TODO(confirm-api)` markers in index.py).
+boto3>=1.35.0

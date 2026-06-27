@@ -64,6 +64,24 @@ Parameters:
     Default: ""
     Description: ECR image URI for the AgentCore Runtime container (required when DeployMode = container).
 
+  GatewayCustomResourceServiceToken:
+    Type: String
+    Default: ""
+    Description: >
+      OPTIONAL. Lambda ARN of the AgentCore provisioner
+      (infra/lambdas/agentcore_provisioner) wired to the gateway custom resource.
+      Blank (default) preserves today's behaviour: the gateway stack writes only
+      the SSM topology placeholders and the endpoint reads PENDING-PROVISION.
+      Supply the ARN to provision a real AgentCore Gateway + targets + authorizer.
+
+  RuntimeProvisionerServiceToken:
+    Type: String
+    Default: ""
+    Description: >
+      OPTIONAL. Lambda ARN of the AgentCore provisioner wired to the AgentCore
+      Runtime registration custom resource (container path only). Blank (default)
+      records the container contract in SSM without calling the control plane.
+
 # ---------------------------------------------------------------------------
 # Resources - nested stacks
 # ---------------------------------------------------------------------------
@@ -118,6 +136,7 @@ Resources:
         UserPoolId: !GetAtt SecurityStack.Outputs.UserPoolId
         AgentExecutionRoleArn: !GetAtt SecurityStack.Outputs.AgentExecutionRoleArn
         KmsKeyArn: !GetAtt SecurityStack.Outputs.KmsKeyArn
+        GatewayCustomResourceServiceToken: !Ref GatewayCustomResourceServiceToken
       Tags:
         - Key: edu:suite
           Value: edu-ai-agents
@@ -141,6 +160,7 @@ Resources:
         AuditTableName: !GetAtt DataStack.Outputs.AuditTableName
         HitlQueueTableName: !GetAtt DataStack.Outputs.HitlQueueTableName
         GuardrailId: !GetAtt SecurityStack.Outputs.GuardrailId
+        RuntimeCustomResourceServiceToken: !Ref RuntimeProvisionerServiceToken
       Tags:
         - Key: edu:suite
           Value: edu-ai-agents

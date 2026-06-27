@@ -2,7 +2,7 @@
 
 > **Verified June 2026.** The deck builder uses this as the per-agent source of truth. Every ROI figure cites an entry in `EDU-DECK-SOURCES.md` and is tagged `[gov/peer-reviewed]`, `[foundation/research]`, `[sector-press/estimate]`, or `[vendor]`. Outcomes are *documented results applied to a reference institution* — modeled to the customer's baseline, never guaranteed. Lead every slide with the strongest source class; flag vendor and estimate figures on-slide.
 >
-> **Shared platform (every agent inherits it):** CloudFront + WAF edge; Cognito / IAM Identity Center federation with role scoping (student / guardian / educator / counselor / administrator); MCP authorization gateway (managed AgentCore Gateway, AWS primitives, or self-built FastMCP) with deny-by-default + short-lived scoped tokens; Amazon Bedrock (Claude) + Guardrails in-VPC (student PII never egresses after masking); PII masker; HITL gate (AgentCore approval or Step Functions `waitForTaskToken`); S3 Object Lock + DynamoDB append-only audit. Agent-specific blocks are called out per agent below.
+> **Shared platform (every agent inherits it):** CloudFront + WAF edge; Cognito / IAM Identity Center federation with role scoping (student / guardian / educator / counselor / administrator); MCP authorization gateway (managed AgentCore Gateway, AWS primitives, or self-built FastMCP) with deny-by-default + short-lived scoped tokens; Amazon Bedrock (Claude) + Guardrails reached over PrivateLink (interface VPC endpoint), not the public internet, with direct identifiers masked before inference; PII masker; HITL gate (AgentCore approval or Step Functions `waitForTaskToken`); S3 Object Lock + DynamoDB append-only audit. Agent-specific blocks are called out per agent below.
 
 ---
 

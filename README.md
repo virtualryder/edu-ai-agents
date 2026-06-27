@@ -1,11 +1,13 @@
 # EDU AI Agent Suite
 ### Governed AI Agents for Education — Built on AWS
 
-> **The agents are not the product. The governed platform that makes them deployable, auditable, and compliant with student-privacy law is.**
+> **The agents are not the product. The governed platform that makes them deployable, auditable, and aligned to student-privacy law (FERPA, COPPA, PPRA, IDEA/504, state law) is.**
+
+> **What this is:** an independent, open-source reference accelerator for discovery, architecture design, demos, and scoped pilots on AWS. **What it is not:** an AWS service or official AWS solution, a compliance certification (FERPA/COPPA/WCAG), a penetration-tested system, or a turnkey production deployment. Production requires customer-specific identity integration, connectors, security hardening, accessibility conformance testing, operations, and legal/privacy review. If you work at AWS, obtain internal approval before using it as a customer-facing asset.
 
 A systems integrator deploying AI inside a K–12 district, a community college, a university, an online program, or a workforce-education provider cannot hand a customer a collection of LLM calls and call it done. Every record an education agent touches — a student's schedule, a financial-aid status, an IEP accommodation, a grade, a disciplinary note, a family message — is an *education record* the moment it is personally identifiable, and it carries FERPA, COPPA, PPRA, IDEA/Section 504, and state student-privacy obligations that exist before the first line of agent code is written. This suite embeds those controls from the first commit: deny-by-default authorization, student-PII masking, grounding verification against approved institutional content, prompt version pinning, a human gate that is framework-enforced (not merely documented), and a tamper-evident audit trail aligned to FERPA recordkeeping and the FERPA "school official / direct control" requirement for vendors.
 
-The result is a deployable accelerator — not a certified product — that gives a delivery team a credible, compliant starting point across eight high-value education workflows that apply across the entire EDU spectrum: K–12 districts, charter and private schools, community colleges, universities, online programs, and adult/workforce education.
+The result is a deployable accelerator — not a certified product — that gives a delivery team a credible, compliance-aligned starting point across eight high-value education workflows that apply across the entire EDU spectrum: K–12 districts, charter and private schools, community colleges, universities, online programs, and adult/workforce education.
 
 **What is deliberately out of scope:** university research administration, advancement/fundraising, and specialized laboratory agents. Those are narrower and do not generalize across institution types. This suite covers what every institution shares — student services, teaching and learning, student success, enrollment, accessibility, and operations.
 
@@ -76,7 +78,7 @@ Every agent and platform component is positioned honestly against four levels:
 
 ## The Eight Agents
 
-Twelve broadly applicable production use cases, consolidated into eight flagship agents that share one platform.
+Twelve broadly applicable, production-oriented reference workflows, consolidated into eight flagship agents that share one platform.
 
 | # | Agent | Problem it solves | Primary systems | Key regulations |
 |---|---|---|---|---|
@@ -98,7 +100,7 @@ Twelve broadly applicable production use cases, consolidated into eight flagship
 Every agent shares the same platform stack. Controls compound: a governance improvement to the student-PII masker, the grounding checker, or the audit trail benefits all eight agents simultaneously.
 
 ### LLM Factory
-A single abstraction routes inference to **Anthropic Claude** (API) or **Amazon Bedrock** (in-account, no data leaves the customer VPC) depending on deployment mode. `EXTRACT_MODE=demo` bypasses the LLM entirely for local, deterministic testing.
+A single abstraction routes inference to **Anthropic Claude** (API) or **Amazon Bedrock** depending on deployment mode. On the Bedrock path, model traffic uses AWS PrivateLink (an interface VPC endpoint) rather than the public internet — Bedrock runs in the AWS service, reached privately — and direct identifiers are minimized/masked before inference. `EXTRACT_MODE=demo` bypasses the LLM entirely for local, deterministic testing.
 
 ### Student-PII Masking
 Structured entity recognition replaces student identifiers, dates of birth, guardian details, and record-linkable fields with stable pseudonyms before any content enters a prompt or an audit record. The masker is stateless and runs before every gateway invocation. This is the EDU analog of HIPAA Safe-Harbor masking, tuned to FERPA-protected identifiers and COPPA's heightened bar for children under 13.
@@ -112,7 +114,7 @@ The governed front door between every agent and every system of record. **No age
 4. **Short-lived scoped tokens** — minted per call via AgentCore Identity / STS; no standing service accounts.
 5. **PII-masked append-only audit** — every attempt (ALLOW/DENY/PENDING_APPROVAL/ERROR) logged with lineage to the system of record, satisfying FERPA's recordkeeping of disclosures.
 
-Reference logic: `platform_core/edu_agent_platform/mcp_gateway/` — a testable Python model of **Amazon Bedrock AgentCore Gateway + AgentCore Identity**. Tool names (`connector_kind.operation`) map 1:1 to AgentCore Gateway targets. See `infra/cloudformation/agentcore-gateway.yaml` for deployable registration.
+Reference logic: `platform_core/edu_agent_platform/mcp_gateway/` — a testable Python model of **Amazon Bedrock AgentCore Gateway + AgentCore Identity**. Tool names (`connector_kind.operation`) map 1:1 to AgentCore Gateway targets. The default deploy provisions the AgentCore deployment contract (config in SSM) and a reference provisioning path in `infra/cloudformation/agentcore-gateway.yaml`; completing the live Gateway/Runtime requires a customer-supplied custom-resource provisioner. The native Step Functions + Lambda path is fully real (four Lambdas + a `waitForTaskToken` gate); its Lambda artifacts are built via `scripts/package_lambdas.sh`.
 
 **You have options for how to build this layer.** `docs/WHY-THE-MCP-LAYER.md` is the plain-English explainer (with a talk track and objection handling) for *why* agents that act on systems need a governed access layer and why to fund it in Phase 1 — and it compares the three implementation paths: **AgentCore Gateway** (managed), **Bedrock-native API Gateway + Lambda** (assembled from AWS primitives), and **FastMCP** (a self-built MCP server when the institution wants to own the code). The point that matters is the same in all three: clean, governed API access for agents to the data itself.
 
@@ -167,6 +169,8 @@ Use these in discovery to scope the pilot, size the ROI, and surface the work th
 ---
 
 ## AWS Deployment
+
+Honest gaps and the remediation roadmap: see `docs/PRODUCTION-READINESS-ACTION-PLAN.md`.
 
 ### Full step-by-step runbooks (anyone can follow them)
 - **`docs/AWS-DEPLOYMENT-REFERENCE.md`** — the master, shared, step-by-step path every agent uses, in deploy order: prerequisites → KMS CMK → VPC/endpoints → Cognito + IdP federation + JWT → CloudFront + WAF → JWT exchange/authorization → application tier (AgentCore Runtime or Step Functions native) → tools/connectors + secrets → S3 Object Lock (WORM) + append-only DynamoDB audit → observability → HITL gate → validation/smoke → teardown. Includes a request-flow walkthrough, an architecture diagram, and a layer→template map.

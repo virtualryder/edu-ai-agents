@@ -39,6 +39,18 @@ Parameters:
     Type: String
     Default: 10.40.11.0/24
 
+  AllowedEgressCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    # SECURITY: destination CIDR for the agent runtime SG HTTPS egress rule. The
+    # 0.0.0.0/0 default is permissive for reference. For production student-data
+    # workloads, restrict this and/or add an egress data perimeter (see the SG
+    # comment below).
+    Description: >
+      Destination CIDR allowed for agent-runtime HTTPS (443) egress. Tighten for
+      production; high-sensitivity deployments should remove general internet
+      egress entirely (private VPC endpoints + egress proxy / firewall).
+
 # ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
@@ -126,6 +138,11 @@ Resources:
           Value: private
 
   # --- NAT (single NAT for reference; customer should run one per AZ in prod) ---
+  # SECURITY/COST NOTE: NAT is retained because not every AWS dependency yet has
+  # an interface VPC endpoint in this template (documented gap). Adding Secrets
+  # Manager, KMS, and CloudWatch Logs interface endpoints (alongside the existing
+  # Bedrock / S3 / DynamoDB endpoints) would let a hardened deployment DROP NAT
+  # entirely and remove the general internet egress path for the private subnets.
   NatEip:
     Type: AWS::EC2::EIP
     DependsOn: InternetGatewayAttachment
@@ -205,12 +222,27 @@ Resources:
         Agent runtime (AgentCore container / Lambda ENIs). No public inbound.
         Egress restricted to HTTPS for AWS service endpoints.
       VpcId: !Ref Vpc
+      # =====================================================================
+      # SECURITY - EGRESS DATA PERIMETER (production hardening for student data)
+      # This rule allows HTTPS (443) egress to AllowedEgressCidr, and private
+      # subnets default-route to NAT (below). For production STUDENT-DATA
+      # workloads this open egress is a data-exfiltration path and should be
+      # constrained with one or more of:
+      #   - AWS Network Firewall (domain/SNI allow-listing) or an egress proxy
+      #   - VPC endpoint POLICIES on the interface endpoints (restrict to the
+      #     account's own Bedrock/Secrets/KMS/Logs resources)
+      #   - an AWS data-perimeter (SCPs + resource policies: aws:PrincipalOrgID,
+      #     aws:ResourceOrgID, VPC-endpoint conditions)
+      # High-sensitivity deployments should REMOVE general internet egress
+      # (set AllowedEgressCidr to a tightly-scoped CIDR or drop this rule) and
+      # reach AWS services exclusively via private VPC endpoints.
+      # =====================================================================
       SecurityGroupEgress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
-          CidrIp: 0.0.0.0/0
-          Description: HTTPS egress to AWS service + connector endpoints (via NAT / VPCe)
+          CidrIp: !Ref AllowedEgressCidr
+          Description: HTTPS egress to AWS service + connector endpoints (via NAT / VPCe). Restrict AllowedEgressCidr for prod.
       Tags:
         - Key: Name
           Value: !Sub "edu-agents-${Environment}-runtime-sg"

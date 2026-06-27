@@ -36,9 +36,10 @@ IaC tool:
   shortened.
 - **Per-environment KMS CMK** — one customer-managed key per environment;
   losing it loses the data it protects (see `runbooks/DR-RUNBOOK.md`).
-- **In-account inference** — Bedrock reached via an interface VPC endpoint; no
-  public inbound path to the agent runtime; student PII never egresses the VPC
-  after masking.
+- **Private model traffic** — Bedrock reached via AWS PrivateLink (an interface
+  VPC endpoint) rather than the public internet; Bedrock runs in the AWS service,
+  reached privately; no public inbound path to the agent runtime; direct
+  identifiers are minimized/masked before inference.
 
 The reference enforcement logic these resources host is the same Python model
 in `platform_core/edu_agent_platform/mcp_gateway/` — readable and testable

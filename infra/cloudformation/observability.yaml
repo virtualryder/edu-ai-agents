@@ -1,0 +1,623 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EDU AI Agent Suite - Observability stack (Layer 10: CloudWatch alarms + dashboard
+  + SNS). REFERENCE / ACCELERATOR TEMPLATE. The customer must tune every threshold,
+  wire real pager routing on the SNS topic, and confirm the custom metric names
+  below match what the application emits before relying on these alarms in
+  production. This stack provisions the operational + governance signals the
+  runbooks (runbooks/INCIDENT-RESPONSE.md, MODEL-DEGRADATION-RESPONSE.md,
+  HITL-QUEUE-OPERATIONS.md) triage on: tool-authorization denials, PII-masking
+  failures, human-approval backlog / HITL timeout, grounding-verification
+  failures, Bedrock throttling + latency, Lambda errors/throttles on the agent
+  functions, DynamoDB audit write failures, and an estimated-charges cost guard.
+  #
+  # =========================================================================
+  # CUSTOM METRICS THE APPLICATION MUST EMIT (put_metric_data)
+  #   Namespace: the CustomMetricNamespace parameter (default "EduAgentSuite").
+  #   The app (mcp_gateway / audit / runtime) MUST publish these EXACT metric
+  #   names for the custom-metric alarms below to function. Emit them with a
+  #   Dimension of Environment=<env> so the alarms (which filter on that
+  #   dimension) match. Recommended unit: Count.
+  #
+  #     ToolAuthorizationDenied  - increment on every gateway DENY decision
+  #                                (deny-by-default / intersection refusal).
+  #     PiiMaskingFailure        - increment whenever PII masking raises / fails
+  #                                BEFORE a prompt or audit write (must be 0).
+  #     ApprovalBacklogAge       - age (seconds) of the OLDEST PENDING item in
+  #                                the HITL queue, emitted periodically.
+  #     HitlApprovalTimeout      - increment when a waitForTaskToken HITL gate
+  #                                times out / fails closed (must be 0).
+  #     GroundingFailure         - increment on a grounding-verification failure
+  #                                (model output not supported by retrieved
+  #                                evidence) - model-degradation signal.
+  #     AuditWriteFailure        - increment when an append-only audit PutItem
+  #                                fails (the trail must never silently drop a
+  #                                record - must be 0).
+  #
+  #   AWS-namespace metrics (AWS/Bedrock, AWS/Lambda, AWS/DynamoDB, AWS/Billing)
+  #   are emitted by the services automatically - no app code required.
+  # =========================================================================
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+    Description: Deployment environment. Drives resource naming, dimensions, and tagging.
+
+  KmsKeyArn:
+    Type: String
+    Default: ""
+    Description: >
+      Optional per-environment CMK ARN (from the security stack) used to encrypt
+      the SNS alarm topic. Leave blank to use SNS-managed encryption (alias/aws/sns).
+      The CMK key policy must allow cloudwatch.amazonaws.com to use the key for
+      kms:GenerateDataKey*/kms:Decrypt when publishing alarm notifications.
+
+  CustomMetricNamespace:
+    Type: String
+    Default: EduAgentSuite
+    Description: >
+      CloudWatch namespace the application publishes its custom governance metrics
+      under (see the CUSTOM METRICS block at the top of this template). Must match
+      the namespace used in the app's put_metric_data calls.
+
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: >
+      Optional email address subscribed to the alarm SNS topic. Leave blank to
+      wire pager/Slack/PagerDuty subscriptions out of band. A real email requires
+      confirming the SNS subscription link.
+
+  CoreFunctionName:
+    Type: String
+    Description: Name of the agent "core" Lambda (e.g. edu-agents-prod-01-concierge-core). Used for Lambda alarms.
+
+  PolicyGateFunctionName:
+    Type: String
+    Description: Name of the agent "policy-gate" Lambda. Used for Lambda alarms.
+
+  HitlEnqueueFunctionName:
+    Type: String
+    Description: Name of the agent "hitl-enqueue" Lambda. Used for Lambda alarms.
+
+  FinalizeFunctionName:
+    Type: String
+    Description: Name of the agent "finalize" Lambda. Used for Lambda alarms.
+
+  AuditTableName:
+    Type: String
+    Description: Append-only audit DynamoDB table name (from the data stack). Used for write-failure alarms.
+
+  BedrockModelId:
+    Type: String
+    Default: anthropic.claude-3-5-sonnet-20241022-v2:0
+    Description: >
+      Bedrock model id used as the ModelId dimension on the AWS/Bedrock alarms
+      (throttling + latency). Set to the primary model the agent invokes.
+
+  ToolDenialSpikeThreshold:
+    Type: Number
+    Default: 25
+    Description: >
+      ToolAuthorizationDenied count (sum over the evaluation window) that trips
+      the denial-spike alarm. A spike can indicate misconfigured entitlements,
+      a probing client, or a broken role mapping. Tune to normal deny volume.
+
+  ApprovalBacklogAgeThresholdSeconds:
+    Type: Number
+    Default: 14400
+    Description: >
+      ApprovalBacklogAge (seconds) that trips the HITL backlog alarm. Default
+      14400s = 4h, well inside the 72h waitForTaskToken timeout so reviewers are
+      paged long before a gate fails closed.
+
+  BedrockP99LatencyThresholdMs:
+    Type: Number
+    Default: 15000
+    Description: Bedrock InvocationLatency p99 (ms) that trips the model-latency alarm.
+
+  EstimatedChargesThreshold:
+    Type: Number
+    Default: 1000
+    Description: >
+      USD threshold for the AWS/Billing EstimatedCharges alarm (cost guard).
+      Only evaluated when EnableCostAlarm = true (the metric exists ONLY in
+      us-east-1 and requires billing alerts enabled in account preferences).
+
+  EnableCostAlarm:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Gate for the estimated-charges cost alarm. Set true ONLY when deploying this
+      stack in us-east-1 AND "Receive Billing Alerts" is enabled in the account's
+      Billing preferences - otherwise the AWS/Billing/EstimatedCharges metric does
+      not exist and the alarm would sit in INSUFFICIENT_DATA.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  HasCmk: !Not [!Equals [!Ref KmsKeyArn, ""]]
+  CostAlarmEnabled: !Equals [!Ref EnableCostAlarm, "true"]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # --- SNS alarm topic (KMS-encrypted) ---------------------------------------
+  # All alarms below notify this topic. Subscribe pager/Slack/PagerDuty here.
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "edu-agents-${Environment}-alarms"
+      DisplayName: !Sub "EDU AI Agents ${Environment} alarms"
+      # Use the env CMK when supplied, else SNS-managed key (alias/aws/sns).
+      KmsMasterKeyId:
+        !If
+          - HasCmk
+          - !Ref KmsKeyArn
+          - alias/aws/sns
+      Tags:
+        - Key: edu:suite
+          Value: edu-ai-agents
+        - Key: edu:environment
+          Value: !Ref Environment
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  # Allow CloudWatch alarms to publish to the topic.
+  AlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref AlarmTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudWatchAlarmsPublish
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AlarmTopic
+            Condition:
+              StringEquals:
+                "AWS:SourceAccount": !Ref AWS::AccountId
+
+  # --- Governance alarms on CUSTOM metrics (app put_metric_data) -------------
+  ToolAuthorizationDenialSpikeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-tool-denial-spike"
+      AlarmDescription: >
+        Spike in gateway tool-authorization DENY decisions. May indicate broken
+        entitlements, a probing client, or a bad IdP role mapping. See
+        runbooks/INCIDENT-RESPONSE.md.
+      Namespace: !Ref CustomMetricNamespace
+      MetricName: ToolAuthorizationDenied
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ToolDenialSpikeThreshold
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  PiiMaskingFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-pii-masking-failure"
+      AlarmDescription: >
+        Any PII-masking failure (> 0). Masking runs BEFORE any prompt or audit
+        write; a failure risks unmasked student PII reaching the model or the
+        audit trail. Investigate immediately - this must always be 0.
+      Namespace: !Ref CustomMetricNamespace
+      MetricName: PiiMaskingFailure
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  ApprovalBacklogAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-hitl-backlog-age"
+      AlarmDescription: >
+        Oldest PENDING HITL approval is aging past the threshold. Reviewers must
+        act before the 72h waitForTaskToken timeout fails the gate closed. See
+        runbooks/HITL-QUEUE-OPERATIONS.md.
+      Namespace: !Ref CustomMetricNamespace
+      MetricName: ApprovalBacklogAge
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ApprovalBacklogAgeThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  HitlApprovalTimeoutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-hitl-approval-timeout"
+      AlarmDescription: >
+        A HITL approval gate timed out / failed closed (> 0). A consequential
+        action was abandoned because no reviewer approved in time. See
+        runbooks/HITL-QUEUE-OPERATIONS.md.
+      Namespace: !Ref CustomMetricNamespace
+      MetricName: HitlApprovalTimeout
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  GroundingFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-grounding-failure"
+      AlarmDescription: >
+        Grounding-verification failures (model output unsupported by retrieved
+        evidence). A rising rate is a model-degradation signal. See
+        runbooks/MODEL-DEGRADATION-RESPONSE.md.
+      Namespace: !Ref CustomMetricNamespace
+      MetricName: GroundingFailure
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  AuditWriteFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-audit-write-failure"
+      AlarmDescription: >
+        Append-only audit PutItem failures (> 0). The audit trail must never
+        silently drop a record (FERPA disclosure recordkeeping). Correlate with
+        the DynamoDB system errors / throttle alarms below.
+      Namespace: !Ref CustomMetricNamespace
+      MetricName: AuditWriteFailure
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # --- Bedrock alarms (AWS/Bedrock namespace) --------------------------------
+  BedrockThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-bedrock-throttles"
+      AlarmDescription: >
+        Bedrock model invocations are being throttled - request an RPM/TPM quota
+        increase or shed load. See runbooks/MODEL-DEGRADATION-RESPONSE.md.
+      Namespace: AWS/Bedrock
+      MetricName: InvocationThrottles
+      Dimensions:
+        - Name: ModelId
+          Value: !Ref BedrockModelId
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  BedrockP99LatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-bedrock-p99-latency"
+      AlarmDescription: >
+        Bedrock p99 invocation latency above threshold - degraded responsiveness
+        for student-facing surfaces. See runbooks/MODEL-DEGRADATION-RESPONSE.md.
+      Namespace: AWS/Bedrock
+      MetricName: InvocationLatency
+      Dimensions:
+        - Name: ModelId
+          Value: !Ref BedrockModelId
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref BedrockP99LatencyThresholdMs
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # --- Lambda alarms (AWS/Lambda) on the four agent functions ----------------
+  CoreFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-core-errors"
+      AlarmDescription: Errors on the agent core Lambda.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref CoreFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  PolicyGateFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-policy-gate-errors"
+      AlarmDescription: Errors on the agent policy-gate Lambda (authorization path).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref PolicyGateFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  HitlEnqueueFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-hitl-enqueue-errors"
+      AlarmDescription: Errors on the HITL-enqueue Lambda (consequential-action gate).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref HitlEnqueueFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  FinalizeFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-finalize-errors"
+      AlarmDescription: Errors on the finalize Lambda (post-approval write path).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FinalizeFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  AgentLambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-core-throttles"
+      AlarmDescription: >
+        Throttles on the agent core Lambda - concurrency limit reached. Request a
+        Lambda concurrency increase before enrollment peak.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref CoreFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # --- DynamoDB audit-table alarms (AWS/DynamoDB) ----------------------------
+  AuditSystemErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-audit-system-errors"
+      AlarmDescription: >
+        DynamoDB system errors on PutItem against the audit table - a failure
+        path that can drop audit writes. Correlate with AuditWriteFailure.
+      Namespace: AWS/DynamoDB
+      MetricName: SystemErrors
+      Dimensions:
+        - Name: TableName
+          Value: !Ref AuditTableName
+        - Name: Operation
+          Value: PutItem
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  AuditWriteThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-audit-write-throttle"
+      AlarmDescription: >
+        Write throttle events on the audit table. On PAY_PER_REQUEST this signals
+        a sudden burst beyond the table's adaptive capacity ramp - audit writes
+        may be rejected and must be retried.
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref AuditTableName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # --- Cost guard (AWS/Billing EstimatedCharges - us-east-1 only) -------------
+  EstimatedChargesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: CostAlarmEnabled
+    Properties:
+      AlarmName: !Sub "edu-agents-${Environment}-estimated-charges"
+      AlarmDescription: >
+        Estimated account charges exceeded the threshold. AWS/Billing metrics
+        exist ONLY in us-east-1 and require billing alerts enabled - this stack
+        must be in us-east-1 with EnableCostAlarm=true for this alarm to work.
+      Namespace: AWS/Billing
+      MetricName: EstimatedCharges
+      Dimensions:
+        - Name: Currency
+          Value: USD
+      Statistic: Maximum
+      # Billing metric publishes ~ every 6 hours; evaluate over 6h.
+      Period: 21600
+      EvaluationPeriods: 1
+      Threshold: !Ref EstimatedChargesThreshold
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # --- Dashboard summarizing the above ----------------------------------------
+  ObservabilityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "edu-agents-${Environment}-overview"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+              "properties": {
+                "markdown": "# EDU AI Agents - ${Environment} | Governance + ops signals. Custom metrics under namespace `${CustomMetricNamespace}` (Environment=${Environment})."
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+              "properties": {
+                "title": "Governance: denials / grounding / PII / audit failures",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "${CustomMetricNamespace}", "ToolAuthorizationDenied", "Environment", "${Environment}" ],
+                  [ "${CustomMetricNamespace}", "GroundingFailure", "Environment", "${Environment}" ],
+                  [ "${CustomMetricNamespace}", "PiiMaskingFailure", "Environment", "${Environment}" ],
+                  [ "${CustomMetricNamespace}", "AuditWriteFailure", "Environment", "${Environment}" ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+              "properties": {
+                "title": "HITL: backlog age (s) + approval timeouts",
+                "region": "${AWS::Region}", "period": 300,
+                "metrics": [
+                  [ "${CustomMetricNamespace}", "ApprovalBacklogAge", "Environment", "${Environment}", { "stat": "Maximum" } ],
+                  [ "${CustomMetricNamespace}", "HitlApprovalTimeout", "Environment", "${Environment}", { "stat": "Sum" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+              "properties": {
+                "title": "Bedrock: throttles + p99 latency (ms)",
+                "region": "${AWS::Region}", "period": 300,
+                "metrics": [
+                  [ "AWS/Bedrock", "InvocationThrottles", "ModelId", "${BedrockModelId}", { "stat": "Sum" } ],
+                  [ "AWS/Bedrock", "InvocationLatency", "ModelId", "${BedrockModelId}", { "stat": "p99" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+              "properties": {
+                "title": "Agent Lambdas: errors + throttles",
+                "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${CoreFunctionName}" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${PolicyGateFunctionName}" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${HitlEnqueueFunctionName}" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${FinalizeFunctionName}" ],
+                  [ "AWS/Lambda", "Throttles", "FunctionName", "${CoreFunctionName}" ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 14, "width": 12, "height": 6,
+              "properties": {
+                "title": "Audit table: system errors + write throttles",
+                "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/DynamoDB", "SystemErrors", "TableName", "${AuditTableName}", "Operation", "PutItem" ],
+                  [ "AWS/DynamoDB", "WriteThrottleEvents", "TableName", "${AuditTableName}" ]
+                ]
+              }
+            }
+          ]
+        }
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  AlarmTopicArn:
+    Description: SNS topic ARN all alarms publish to. Subscribe pager / Slack / PagerDuty here.
+    Value: !Ref AlarmTopic
+
+  DashboardName:
+    Description: CloudWatch dashboard name summarizing governance + ops signals.
+    Value: !Ref ObservabilityDashboard
+
+  CustomMetricNamespaceOut:
+    Description: Namespace the app must publish custom governance metrics under.
+    Value: !Ref CustomMetricNamespace

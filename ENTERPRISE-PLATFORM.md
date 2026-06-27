@@ -42,9 +42,9 @@ Reference logic is readable, testable Python in `platform_core/edu_agent_platfor
 
 ## 4. Deployment model
 
-- **Primary:** CloudFormation quick-deploy provisions a customer-isolated environment (VPC, KMS, Cognito/IAM Identity Center federation, Guardrail, append-only audit, AgentCore Gateway, per-agent runtime). Terraform parity for teams standardized on Terraform.
-- **Runtime:** AgentCore Runtime (ARM64 container, `/invocations` + `/ping`) or the native Strands + Step Functions rebuild with a `waitForTaskToken` HITL gate.
-- **Inference:** Amazon Bedrock (Claude) in-account; student PII never egresses the VPC after masking.
+- **Primary:** CloudFormation quick-deploy provisions a customer-isolated environment (VPC, KMS, Cognito/IAM Identity Center federation, Guardrail, append-only audit). For AgentCore it provisions the deployment contract (config in SSM) and a reference provisioning path; completing the live AgentCore Gateway/Runtime requires a customer-supplied custom-resource provisioner. Terraform parity for teams standardized on Terraform.
+- **Runtime:** The native Strands + Step Functions path is fully real (four Lambdas + a `waitForTaskToken` HITL gate; Lambda artifacts built via `scripts/package_lambdas.sh`). The AgentCore Runtime container lift (ARM64, `/invocations` + `/ping`) deploys against the AgentCore deployment contract via the same customer-supplied provisioner.
+- **Inference:** Amazon Bedrock (Claude). Model traffic uses AWS PrivateLink (an interface VPC endpoint) rather than the public internet — Bedrock runs in the AWS service, reached privately — and direct identifiers are minimized/masked before inference.
 
 Step-by-step in `docs/DEPLOYMENT-HANDBOOK.md`; architecture and AWS service mapping in `docs/SUITE-ARCHITECTURE.md`.
 
