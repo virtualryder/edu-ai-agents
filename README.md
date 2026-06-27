@@ -6,6 +6,8 @@
 
 > **What this is not:** an AWS service, a compliance certification, a penetration-tested product, or a turnkey deployment. Production requires customer-specific identity integration, connectors, security review, and legal/privacy sign-off. If you work at AWS, obtain internal approval before using this as a customer-facing asset.
 
+> **Maturity is governed by one authoritative file:** [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) — the per-agent / per-control capability matrix that every status statement in this repo derives from. New here? Start with the [documentation index](docs/README.md).
+
 ---
 
 ## Table of Contents
@@ -59,7 +61,7 @@ Every agent includes a Streamlit demo app, fixture data, and tests that run with
 ### 3. Run the test suite
 
 ```bash
-make test                         # runs all governance + agent tests (59 tests)
+make test                         # runs all governance + agent tests (70 platform + governance + agent tests)
 ```
 
 ### 4. Validate CloudFormation templates
@@ -587,6 +589,9 @@ Note: Resources with `DeletionPolicy: Retain` (KMS key, audit data) survive dele
 | [`docs/DEPLOYMENT-HANDBOOK.md`](docs/DEPLOYMENT-HANDBOOK.md) | Console + CLI walkthrough from empty AWS account to running agent |
 | [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md) | Copy-pasteable golden-path runbook for Agent 01 with verification at every step |
 | [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md) | Honest gap register with P0–P4 priorities and remediation status |
+| [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) | **Authoritative** per-agent / per-control capability matrix — the single source of truth for maturity |
+| [`docs/SECOND-REVIEW-ACTION-PLAN.md`](docs/SECOND-REVIEW-ACTION-PLAN.md) | Second-review delta: 10 gaps + 5 priorities mapped to status, files, and verification |
+| [`docs/README.md`](docs/README.md) | Documentation index — every doc grouped by audience |
 
 ---
 
@@ -648,7 +653,9 @@ edu-ai-agents/
 <a id="maturity--roadmap"></a>
 ## Maturity & Roadmap
 
-Every agent and platform component is positioned honestly against four levels:
+Every agent and platform component is positioned honestly against four levels. **The authoritative, per-agent / per-control breakdown is [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md); the table below is its summary.**
+
+**Current status (one line):** the shared platform controls are built and unit-tested, and the Agent 01 golden-path scaffolding is demonstrated locally (with Agents 01/04/05 exercising a live-HTTP connector path) — while a clean-account AWS deployment, real-model invocation, production identity, live connectors, accessibility conformance, and production sign-off remain customer/engagement work.
 
 | Level | Description | Where we are |
 |---|---|---|
@@ -663,7 +670,7 @@ Every agent and platform component is positioned honestly against four levels:
 - **Governance in code:** Grounding verification, hash-pinned prompt registry (8 prompts), eval harness, fairness screens (disparate-impact + representativeness), red team scenarios, HITL gate tests, consequential bright-line test, WCAG pre-flight, control mappings
 - **Infrastructure:** 9 CloudFormation templates (network, security, data, edge, observability, quickstart + agent-specific), Terraform parity, AgentCore provisioner Lambda
 - **Security CI:** Bandit (SAST), pip-audit (CVEs), detect-secrets, checkov (IaC), SBOM generation, Dependabot
-- **Tests:** 59 passing (governance + gateway + agent tests)
+- **Tests:** 67 passing (platform + governance + gateway-hardening + AgentCore-provisioner tests) — `python -m pytest platform_core/tests governance/tests infra/lambdas/agentcore_provisioner -q --ignore=governance/tests/test_hitl_gates.py`
 - **Field collateral:** 10 slide decks, battlecard, SOW template, ROI calculator, stakeholder briefings, FAQ
 
 ### Honest gaps (see [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md))

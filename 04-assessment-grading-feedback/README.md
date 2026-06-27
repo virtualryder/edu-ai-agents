@@ -121,6 +121,6 @@ Full mapping: `docs/edu-compliance.md`.
 
 ---
 
-## Maturity: **Documented**
+## Maturity: **Demonstrated locally** (live-connector path) — not AWS-deployed
 
-Architecture, the deterministic-score/human-review pattern, tool grants, and compliance design are written and reviewed — useful for discovery and architecture review; not yet runnable. Subsequent passes bring it to Demonstrated, Deployable, and Production-ready (including human-agent agreement validation, bias testing, evidence-retention, and accessibility conformance). See `../README.md`.
+Architecture, the deterministic-score/human-review pattern, tool grants, and compliance design are written and reviewed, and the agent **runs end-to-end locally**: in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) and over a **local-HTTP live-connector path** (`CONNECTOR_MODE=live` against a local stand-in service of record — releasing a grade is gated at the gateway before any HTTP call; see `demo/DEMO-LIVE.md` and `tests/test_live_path.py`). Still customer/engagement work: a clean-account AWS deploy, real-model invocation, production IdP, a real gradebook/LMS connector, human-agent agreement validation, bias testing, evidence-retention, and accessibility conformance. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also `../README.md`.

@@ -2,12 +2,18 @@
 
 > **What this is:** an independent, open-source reference accelerator for discovery, architecture design, demos, and scoped pilots on AWS. **What it is not:** an AWS service or official AWS solution, a compliance certification (FERPA/COPPA/WCAG), a penetration-tested system, or a turnkey production deployment. Production requires customer-specific identity integration, connectors, security hardening, accessibility conformance testing, operations, and legal/privacy review. If you work at AWS, obtain internal approval before using it as a customer-facing asset.
 
-**Phase:** Foundation + Demonstrated/Deployable-by-design.
+**Phase:** Demonstrated + Deployable-by-design (platform controls built and tested; Agent 01 golden path demonstrated locally).
+
+> **Authoritative status:** maturity is governed by [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md).
+> The summary below derives from it; if anything disagrees, the manifest is correct.
 
 ## Maturity
-Documented + **Demonstrated** (runs end-to-end in `EXTRACT_MODE=demo`, no API key) + **Deployable-by-design**
-(CloudFormation + Terraform, AgentCore container contract). Production-readiness (CSV, IdP integration,
-live connectors, WCAG 2.2 AA conformance, penetration test) is the engagement.
+Documented + **Demonstrated** (all 8 agents run end-to-end in `EXTRACT_MODE=demo`, no API key; Agents 01/04/05
+also exercise a local-HTTP live-connector path) + **Deployable-by-design** (CloudFormation + Terraform parse/lint,
+AgentCore container contract; Agent 01 has a one-command `make golden-path-01`). The shared platform controls are
+built and unit-tested. **No agent is AWS-deployed in a clean account, invokes a real model, uses production identity,
+or is production-approved** — that, plus live connectors, WCAG 2.2 AA conformance, and a penetration test, is the
+customer engagement.
 
 ## Built & verified
 - **Shared platform** (`platform_core/edu_agent_platform/`): LLM factory (Anthropic/Bedrock + Guardrails),

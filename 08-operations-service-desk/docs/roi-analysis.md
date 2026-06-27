@@ -76,4 +76,4 @@ For most institutions the return concentrates in two places. On the IT side, the
 
 ---
 
-Maturity: **Documented.**
+Maturity: **Demonstrated locally — not AWS-deployed.** This agent runs end-to-end locally (demo mode + tests); a clean-account AWS deploy, real-model invocation, production identity, live connectors, and production sign-off remain customer/engagement work. Authoritative status: [`../../docs/STATUS-MANIFEST.md`](../../docs/STATUS-MANIFEST.md).

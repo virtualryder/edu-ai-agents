@@ -88,4 +88,4 @@ The U.S. Department of Education identifies college/career exploration, advising
 
 ---
 
-**Maturity: Documented.**
+**Maturity: Demonstrated locally — not AWS-deployed.** Architecture and the read-only-options/deterministic-rules pattern are written and reviewed, and the agent runs end-to-end locally in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) with a passing `tests/` suite (connectors run in **fixture** mode). Still customer/engagement work: a clean-account AWS deploy, real-model invocation, production IdP, a real SIS/transfer-articulation connector, and accessibility conformance. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also `../README.md`.

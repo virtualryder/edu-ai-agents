@@ -129,6 +129,6 @@ Measure **learning improvement, not usage**. A tutoring agent with high usage bu
 
 ---
 
-## Maturity: **Documented**
+## Maturity: **Demonstrated locally** — not AWS-deployed
 
-Architecture, pedagogy controls, tool grants, and compliance design are written and reviewed — useful for discovery and architecture review; not yet runnable. Subsequent passes bring it to Demonstrated, Deployable, and Production-ready (including educator-configured grounding validation, WCAG 2.2 AA conformance, and integrity red-teaming). See `../README.md`.
+Architecture, pedagogy controls, tool grants, and compliance design are written and reviewed, and the agent **runs end-to-end locally** in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) with a passing `tests/` suite (connectors run in **fixture** mode). Still customer/engagement work: a clean-account AWS deploy, real-model invocation, production IdP, real connectors, educator-configured grounding validation, WCAG 2.2 AA conformance, and integrity red-teaming. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also `../README.md`.

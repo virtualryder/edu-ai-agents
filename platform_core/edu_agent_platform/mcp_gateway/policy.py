@@ -293,6 +293,11 @@ RECORD_SCOPED_TOOLS: FrozenSet[str] = frozenset({
 _RECORD_ARG_KEYS = ("student_id", "record_id", "student", "sid", "case_student_id")
 _SELF_SCOPED_ROLES: FrozenSet[str] = frozenset({"STUDENT", "GUARDIAN"})
 
+# Consequential commits that require separation of duties (requestor != approver).
+SEPARATION_REQUIRED_TOOLS: FrozenSet[str] = frozenset({
+    "sis.update_enrollment_record", "erp.initiate_approval",
+})
+
 
 def _target_record_id(args: Dict[str, object]) -> str:
     for k in _RECORD_ARG_KEYS:
@@ -305,21 +310,37 @@ def _target_record_id(args: Dict[str, object]) -> str:
 def record_scope_ok(user_roles: Iterable[str], claims: Dict[str, object],
                     tool: str, args: Dict[str, object]) -> Tuple[bool, str]:
     """
-    Return (ok, reason). Enforces that a self-scoped principal can only reach their
-    own / linked student record on a record-scoped tool. Open (ok=True) for tools
-    that aren't record-scoped or calls that name no specific record.
+    Return (ok, reason) — FAIL CLOSED for record-scoped tools.
+
+    A self-scoped principal (student / guardian) may only reach their own or an
+    explicitly linked student record. The authoritative target is derived from
+    verified identity, not trusted from free-form args:
+      * an explicit target in args must be the principal's own / a linked record;
+      * with NO explicit target, the call resolves to the principal's single
+        authoritative record (a student -> own; a guardian linked to exactly one
+        student -> that student). If the target is absent AND identity does not
+        resolve to exactly one record (e.g. a guardian linked to several, or no
+        identity), the call is DENIED rather than widened to institutional scope.
+    Staff roles operate at institutional scope (a customer narrows this to assigned
+    students/sections via an entitlement claim).
     """
     if tool not in RECORD_SCOPED_TOOLS:
         return True, "not record-scoped"
-    target = _target_record_id(args or {})
-    if not target:
-        return True, "no explicit record target"
     roleset = set(user_roles)
     if roleset - _SELF_SCOPED_ROLES:  # any staff role -> institutional scope
         return True, "staff institutional scope"
-    own = str(claims.get("student_id") or claims.get("sub") or "")
+    guardian_only = (roleset & _SELF_SCOPED_ROLES) == {"GUARDIAN"}
+    own = "" if guardian_only else str(claims.get("student_id") or claims.get("sub") or "")
     linked = {str(s) for s in (claims.get("students") or [])}
-    if target in ({own} | linked):
+    permitted = {x for x in ({own} | linked) if x}
+    target = _target_record_id(args or {})
+    if not target:
+        # No authoritative target named: resolve from identity, else fail closed.
+        if len(permitted) == 1:
+            return True, "self record (derived from verified identity)"
+        return False, ("record-scope: no authoritative record target and identity "
+                       "does not resolve to a single record (fail-closed)")
+    if target in permitted:
         return True, "record owner / linked"
     return False, (f"record-scope: principal may not access record {target!r} "
                    f"(self-scoped to own/linked records)")

@@ -127,6 +127,6 @@ A high contact volume with no deflection is not success; moderate volume with a 
 
 ---
 
-## Maturity: **Documented**
+## Maturity: **Demonstrated locally** (golden path) — not AWS-deployed
 
-Architecture, workflow, tool grants, and compliance design are written and reviewed — useful for customer discovery and architecture review; not yet runnable. Subsequent passes bring it to **Demonstrated** (`EXTRACT_MODE=demo`), **Deployable** (CloudFormation + container contract + CI), and **Production-ready** (customer security/privacy review, IdP integration, live SIS/CRM connectors, WCAG 2.2 AA conformance testing, penetration test). See the suite maturity ladder in `../README.md`.
+Architecture, workflow, tool grants, and compliance design are written and reviewed, and the agent **runs end-to-end locally**: in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) and over a **local-HTTP live-connector path** (`CONNECTOR_MODE=live` against a local stand-in service of record, gated at the gateway before any HTTP call). Agent 01 is the **golden path** — record-level authorization, durable single-use signed approvals, edge/observability templates, an AgentCore provisioner, and a one-command `make golden-path-01` all exist and are test/lint-verified. Still customer/engagement work: an independently-proven deploy in a clean AWS account, real-model invocation, production IdP federation, a real SIS/CRM connector, WCAG 2.2 AA conformance testing, and a penetration test. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also the suite maturity ladder in `../README.md`.

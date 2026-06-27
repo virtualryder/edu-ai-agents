@@ -95,7 +95,7 @@ Connector and identity/role-mapping detail — including group-membership propag
 | **3 — Gated remediation** | Privileged IT actions | Resets a password, restarts a managed service, routes an incident — each HITL-gated to a named human; security/identity/safeguarding escalates immediately | Every privileged remediation gated |
 | **4 — Draft & initiate admin workflow** | HR/finance/procurement/facilities | Drafts scopes/RFPs/board packets, initiates approval workflows, tracks to completion | Segregation of duties: agent initiates, separate human approves |
 
-Each phase adds capability without loosening the bright line. The maturity ladder advances per phase — Documented today; Demonstrated and Deployable in subsequent passes — exactly as the suite's delivery model intends (`../README.md`).
+Each phase adds capability without loosening the bright line. The maturity ladder advances per phase — Demonstrated locally today (demo mode + tests); Deployable-by-design (templates parse) and Production-ready in subsequent customer engagements — exactly as the suite's delivery model intends (`../README.md`).
 
 ---
 
@@ -135,4 +135,4 @@ Two verified, real-world references — attributed exactly, not embellished:
 
 ---
 
-Maturity: **Documented.**
+Maturity: **Demonstrated locally — not AWS-deployed.** Architecture and the diagnose/gated-remediation pattern are written and reviewed, and the agent runs end-to-end locally in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) with a passing `tests/` suite (connectors run in **fixture** mode). Every privileged remediation is HITL-gated and separation-of-duties applies (agent initiates, a separate human approves). Still customer/engagement work: a clean-account AWS deploy, real-model invocation, production IdP, real ITSM connectors, and accessibility conformance. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also `../README.md`.

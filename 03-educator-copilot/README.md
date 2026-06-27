@@ -135,6 +135,6 @@ Full mapping: `docs/edu-compliance.md`.
 
 ---
 
-## Maturity: **Documented**
+## Maturity: **Demonstrated locally** — not AWS-deployed
 
-Architecture, the draft-first pattern, tool grants, and compliance design are written and reviewed — useful for discovery and architecture review; not yet runnable. Subsequent passes bring it to Demonstrated, Deployable, and Production-ready (including LMS-action validation, accessibility conformance, and rollback testing). See `../README.md`.
+Architecture, the draft-first pattern, tool grants, and compliance design are written and reviewed, and the agent **runs end-to-end locally** in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) with a passing `tests/` suite (connectors run in **fixture** mode). Still customer/engagement work: a clean-account AWS deploy, real-model invocation, production IdP, real connectors, LMS-action validation, accessibility conformance, and rollback testing. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also `../README.md`.

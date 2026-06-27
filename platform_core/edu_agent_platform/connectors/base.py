@@ -26,6 +26,26 @@ class Connector(abc.ABC):
 
     kind: str = "base"
 
+    def authorize_call(self, token: Any, expected_tool: str) -> None:
+        """
+        Zero-trust at the connector boundary: independently verify the short-lived,
+        tool-scoped token the gateway minted for THIS call. A connector must refuse
+        any invocation that does not carry a valid gateway token scoped to the tool
+        being called — so a compromised or directly-exposed connector cannot be
+        driven without going through the authorization gateway. Fails closed.
+        """
+        from edu_agent_platform.mcp_gateway import tokens as _tokens
+        if not token:
+            raise PermissionError(
+                f"connector {self.kind!r} refused {expected_tool!r}: no gateway token"
+            )
+        try:
+            _tokens.verify_scoped_token(token, expected_tool=expected_tool)
+        except Exception as exc:
+            raise PermissionError(
+                f"connector {self.kind!r} refused {expected_tool!r}: invalid gateway token ({exc})"
+            ) from exc
+
 
 class GenericConnector(Connector):
     """

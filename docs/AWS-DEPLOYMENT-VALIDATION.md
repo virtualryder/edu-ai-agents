@@ -5,7 +5,8 @@
 parse, contracts are consistent, governance is enforced in tests) — not a
 **Production-ready** assertion, which requires a customer security review, live
 connectors, IdP integration, accessibility conformance testing, and a penetration
-test (see the Maturity Ladder in the root `README.md`).*
+test (see the Maturity Ladder in the root `README.md` and the authoritative
+[`STATUS-MANIFEST.md`](STATUS-MANIFEST.md)).*
 
 ## What was checked
 
@@ -34,9 +35,19 @@ no agent runtime installed; they pass in the agent CI lanes.
 ## Known gaps (carried from the deployment reference, surfaced honestly)
 
 The shared edge layer (CloudFront/WAF/ACM/Route 53), expanded VPC endpoints
-(Secrets Manager / CloudWatch Logs / KMS), CloudWatch alarms/dashboards, the
-JWT-exchange Lambda authorizer, per-data-domain CMK split, IaC-created connector
-secrets, and the HITL reviewer UI are **documented in `docs/AWS-DEPLOYMENT-REFERENCE.md`
-but not yet shipped as first-class templates** — they are customer/SI build items.
+(Secrets Manager / CloudWatch Logs / KMS), the JWT-exchange Lambda authorizer,
+per-data-domain CMK split, IaC-created connector secrets, and the HITL reviewer UI are
+**documented in `docs/AWS-DEPLOYMENT-REFERENCE.md` but not yet shipped as first-class
+templates** — they are customer/SI build items.
+
+**Update (this pass):** the shared **edge layer** now ships as a first-class template
+(`infra/cloudformation/edge.yaml` — CloudFront + WAFv2 + ACM + security headers) and
+**CloudWatch alarms/dashboards** ship as `infra/cloudformation/observability.yaml`
+(the alarms reference the metric names emitted by `mcp_gateway/metrics.py`). Both **parse
+and lint**, but remain **un-deployed-as-tested** — no clean-account stand-up has exercised
+them end-to-end. They are therefore Deployable-by-design, not validated-in-deployment; see
+the authoritative [`STATUS-MANIFEST.md`](STATUS-MANIFEST.md) (AWSDeploy = No on every row)
+and the gap-by-gap [`SECOND-REVIEW-ACTION-PLAN.md`](SECOND-REVIEW-ACTION-PLAN.md) (Gaps 1, 6, 8).
+
 The per-agent runbooks under `runbooks/agent-deploy/` and the master reference call
 each of these out explicitly so nothing is assumed present that isn't.

@@ -134,4 +134,4 @@ These illustrate the two capabilities Agent 07 consolidates — document/credent
 
 ---
 
-Maturity: **Documented.**
+Maturity: **Demonstrated locally — not AWS-deployed.** Architecture and the classify/extract/transform pattern are written and reviewed, and the agent runs end-to-end locally in demo mode (`EXTRACT_MODE=demo`, deterministic fixtures, no API key) with a passing `tests/` suite (connectors run in **fixture** mode). The accessibility work ships a deterministic WCAG pre-flight (`governance/accessibility/`); formal WCAG 2.x conformance testing (axe-core + screen-reader + PDF/UA) is still customer-owned — along with a clean-account AWS deploy, real-model invocation, production IdP, and real document-source connectors. Status is governed by [`../docs/STATUS-MANIFEST.md`](../docs/STATUS-MANIFEST.md); see also `../README.md`.

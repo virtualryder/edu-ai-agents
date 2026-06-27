@@ -162,10 +162,25 @@ def checks(state: ConciergeState) -> ConciergeState:
     return state
 
 
+# Outbound actions that are consequential and therefore require a human gate. Low-risk
+# workflows (open an advising case, schedule an appointment) are authorized by the
+# gateway and audited, but do not require a staff approval pause.
+_CONSEQUENTIAL_ACTION_TYPES = {"send_message"}
+
+
 def routing_decision(state: ConciergeState) -> str:
     if state.get("recommended_action") == RecommendedAction.REVISE:
-        return "draft_response"
-    return "human_review_gate"
+        return "draft_response"          # bounded redraft
+    if state.get("recommended_action") == RecommendedAction.ESCALATE:
+        return "human_review_gate"       # sensitive / out-of-scope -> staff
+    # Clean ANSWER: gate ONLY when a consequential outbound action is requested.
+    # A pure read-only answer (and low-risk workflows) goes straight to finalize —
+    # the gateway still authorizes and audits it; over-gating routine reads is not
+    # required and is the behavior a reviewer flagged.
+    action = state.get("action_request") or {}
+    if action.get("type") in _CONSEQUENTIAL_ACTION_TYPES:
+        return "human_review_gate"
+    return "finalize"
 
 
 def human_review_gate(state: ConciergeState) -> ConciergeState:

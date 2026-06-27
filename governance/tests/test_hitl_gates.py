@@ -25,7 +25,11 @@ from agent.graph import build_graph, HUMAN_GATE_NODE
 g = build_graph(use_memory=True)
 cfg = {"configurable": {"thread_id": "hitl-probe"}}
 # Minimal seed: every agent tolerates an empty-ish dict with demo defaults.
-g.invoke({"acting_user_claims": {"sub": "probe", "custom:edu_role": "STUDENT"}}, cfg)
+# Seed a CONSEQUENTIAL request (an outbound send): the gate must fire for it on
+# every agent. (Agents route clean read-only answers straight to finalize; the
+# consequential path is the one that must be human-gated.)
+g.invoke({"acting_user_claims": {"sub": "probe", "custom:edu_role": "STUDENT", "student_id": "S-1"},
+          "action_request": {"type": "send_message", "payload": {}}}, cfg)
 nxt = g.get_state(cfg).next
 assert nxt == (HUMAN_GATE_NODE,), f"{agent_dir}: expected interrupt before {HUMAN_GATE_NODE}, got {nxt}"
 print("OK")

@@ -114,4 +114,4 @@ Guardrails are a model-layer safety net. The authoritative controls for who-can-
 
 ---
 
-Maturity: **Documented.**
+Maturity: **Demonstrated locally — not AWS-deployed.** This agent runs end-to-end locally (demo mode + tests); a clean-account AWS deploy, real-model invocation, production identity, live connectors, and production sign-off remain customer/engagement work. Authoritative status: [`../../docs/STATUS-MANIFEST.md`](../../docs/STATUS-MANIFEST.md).

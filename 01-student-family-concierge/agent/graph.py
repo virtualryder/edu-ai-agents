@@ -50,8 +50,9 @@ def build_graph(use_memory: bool = True):
         source="checks",
         path=routing_decision,
         path_map={
-            "draft_response": "draft_response",        # bounded revision loop
-            "human_review_gate": "human_review_gate",   # clean / escalate -> human
+            "draft_response": "draft_response",          # bounded revision loop
+            "human_review_gate": "human_review_gate",     # escalate / consequential send -> human
+            "finalize": "finalize",                       # clean read-only / low-risk -> no gate
         },
     )
     workflow.add_edge("human_review_gate", "finalize")

@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional
 
 from . import approvals as _approvals
 from . import approval_store as _approval_store
+from . import metrics as _metrics
 from . import policy as _policy
 from . import tokens as _tokens
 from .audit import GatewayAuditLog
@@ -57,6 +58,15 @@ def _roles_from_claims(claims: Dict[str, Any]) -> List[str]:
     if str(claims.get("rights_transferred", "")).strip().lower() in ("1", "true", "yes"):
         roles = [r for r in roles if r != "GUARDIAN"]
     return roles
+
+
+def _separation_ok(tool: str, approval: Dict[str, Any], subject: str) -> bool:
+    """Separation of duties: for the highest-risk commits the approver must not be
+    the requesting subject."""
+    if tool not in _policy.SEPARATION_REQUIRED_TOOLS:
+        return True
+    reviewer_sub = (approval.get("reviewer") or {}).get("sub")
+    return bool(reviewer_sub) and reviewer_sub != subject
 
 
 @dataclass
@@ -112,6 +122,7 @@ class MCPGateway:
                 "decision": "DENY", "tool": tool, "agent_id": agent_id, "user": subject,
                 "roles": roles, "reason": decision.reason,
             })
+            _metrics.emit(_metrics.TOOL_AUTH_DENIED, dims={"agent_id": agent_id})
             if raise_on_deny:
                 raise PolicyDenied(decision.reason)
             return GatewayResult("DENY", tool, aid, reason=decision.reason)
@@ -126,6 +137,7 @@ class MCPGateway:
                 "decision": "DENY", "tool": tool, "agent_id": agent_id, "user": subject,
                 "roles": roles, "reason": scope_reason,
             })
+            _metrics.emit(_metrics.RECORD_SCOPE_DENIED, dims={"agent_id": agent_id})
             if raise_on_deny:
                 raise PolicyDenied(scope_reason)
             return GatewayResult("DENY", tool, aid, reason=scope_reason)
@@ -139,6 +151,7 @@ class MCPGateway:
                 "user": subject, "roles": roles,
                 "reason": f"{tool} is consequential; human approval required before execution",
             })
+            _metrics.emit(_metrics.APPROVAL_REQUIRED, dims={"agent_id": agent_id})
             if raise_on_deny:
                 raise ApprovalRequired(f"{tool} requires human approval")
             return GatewayResult("PENDING_APPROVAL", tool, aid, reason="human approval required",
@@ -152,7 +165,7 @@ class MCPGateway:
 
         # 5. Invoke the tool via the connector framework
         try:
-            result = self._invoke_connector(decision, args)
+            result = self._invoke_connector(decision, args, token=token, expected_tool=tool)
         except Exception as exc:  # 7. fail closed on any execution error
             self.audit.record({
                 "decision": "ERROR", "tool": tool, "agent_id": agent_id, "user": subject,
@@ -199,17 +212,24 @@ class MCPGateway:
             )
             if not ok:
                 return False
+            if not _separation_ok(tool, approval, subject):
+                return False  # requestor may not approve their own high-risk commit
             # ...then enforce single-use via the (durable in prod) nonce store.
             nonce = (approval.get("binding") or {}).get("nonce")
             return self._approval_store.consume(nonce)
         if _approvals._demo_mode():
             reviewer = approval.get("reviewer") or {}
-            return bool(approval.get("approved")) and bool(reviewer.get("sub"))
+            return (bool(approval.get("approved")) and bool(reviewer.get("sub"))
+                    and _separation_ok(tool, approval, subject))
         return False
 
-    def _invoke_connector(self, decision: "_policy.PolicyDecision", args: Dict[str, Any]) -> Any:
+    def _invoke_connector(self, decision: "_policy.PolicyDecision", args: Dict[str, Any],
+                          token: str = "", expected_tool: str = "") -> Any:
         from edu_agent_platform.connectors import get_connector
 
         conn = get_connector(decision.connector_kind, mode=self._connector_mode)
+        # Zero-trust: the connector independently validates the gateway-issued,
+        # tool-scoped token before executing — it will not run an unauthorized call.
+        conn.authorize_call(token, expected_tool or decision.method)
         method = getattr(conn, decision.method)
         return method(**args)
