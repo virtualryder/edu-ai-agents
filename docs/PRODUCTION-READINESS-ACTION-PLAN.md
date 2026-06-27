@@ -75,7 +75,10 @@ Pick **Agent 01 (Student & Family Concierge)** or **Agent 07 (Document & Accessi
 | Separation of duties on approvals (requestor ≠ approver where required); post-action verification; complete case-level audit linkage | Dev | Tests assert requestor≠approver and post-write reconciliation |
 | Replace the dev HMAC scoped token with **AgentCore Identity / STS**; add purpose-of-use, data-classification, connector identity, revocation | Dev/AWS | Token issued by AgentCore/STS; revocation honored |
 
-## P4 — Customer assurance package (per golden path) ⬜
+## P4 — Customer assurance package (per golden path) 🔧
+
+**Landed this pass (in `docs/assurance/`):** STRIDE [THREAT-MODEL](assurance/THREAT-MODEL.md), [IAM-MATRIX](assurance/IAM-MATRIX.md) (entitlements computed from `policy.py`), a FERPA/COPPA [PIA template](assurance/PRIVACY-IMPACT-ASSESSMENT-TEMPLATE.md), and a WCAG 2.x [Accessibility Conformance Plan](assurance/ACCESSIBILITY-CONFORMANCE-PLAN.md). Remaining: independent penetration test, full WCAG conformance testing, and the per-customer completion/sign-off of the templates — all customer/engagement-owned.
+
 
 Deliverables a CISO/architecture review board will ask for: architecture + data-flow diagrams, **threat model**, **privacy impact assessment** template, FERPA/COPPA responsibility matrix (extend `SHARED-RESPONSIBILITY-MATRIX.md`), **IAM matrix**, model/prompt/tool inventories, **SBOM**, security-scan and test results, **accessibility conformance** (axe-core + manual screen-reader + PDF/UA, not just the preflight), RTO/RPO test, cost estimate, known-limitations, and a defined **operations & support model** (release/change management for model/prompt/policy/connector changes, rollback, revalidation, incident runbooks).
 
