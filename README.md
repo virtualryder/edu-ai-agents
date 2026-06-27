@@ -82,6 +82,8 @@ make golden-path-01 \
   IDP_METADATA=https://your-idp/metadata
 ```
 
+**Prove the full chain locally (no AWS):** `python 01-student-family-concierge/demo/golden_transaction.py` runs identity → gateway → scoped token → connector → signed single-use human approval → result → masked audit and writes an evidence bundle. The human-in-the-loop reviewer is in `platform_core/edu_agent_platform/reviewer/` (`streamlit run .../reviewer/app.py`).
+
 ---
 
 <a id="the-problem-this-solves"></a>

@@ -85,3 +85,11 @@ one-command path), and **not yet Production-ready** anywhere.
 | `docs/AWS-DEPLOYMENT-VALIDATION.md` | Templates parse/lint; edge.yaml + observability.yaml now ship as templates but remain un-deployed-as-tested. |
 
 *See also: [`docs/SECOND-REVIEW-ACTION-PLAN.md`](SECOND-REVIEW-ACTION-PLAN.md) (gap-by-gap status) and [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](PRODUCTION-READINESS-ACTION-PLAN.md) (full P0–P4 register).*
+
+## Platform capability update (June 2026)
+
+| Capability | Status | Evidence |
+|---|---|---|
+| End-to-end "one complete path" (identity → gateway → scoped token → connector → signed single-use approval → result → masked append-only audit) | **Demonstrated in-repo (Agent 01)** | `01-student-family-concierge/demo/golden_transaction.py` + `tests/test_end_to_end.py`; evidence bundle at `demo/evidence/golden_transaction_evidence.json` |
+| Production HITL reviewer (authenticate → entitlement → exact action → separation of duties → signed single-use approval → replay rejected → audit) | **Reference service + UI built** | `platform_core/edu_agent_platform/reviewer/` + `platform_core/tests/test_reviewer.py` (5 tests); `reviewer/app.py` (Streamlit) |
+| Clean-account AWS deploy of the above (live AgentCore endpoint, real IdP) | **Customer-engagement (open)** | `make golden-path-01` + `runbooks/agent-deploy/01-GOLDEN-PATH.md` |

@@ -1,0 +1,196 @@
+{
+  "transaction": "golden-path-01",
+  "chain": [
+    "identity",
+    "policy_gateway",
+    "scoped_token",
+    "connector_sor",
+    "human_approval",
+    "verified_result",
+    "immutable_audit"
+  ],
+  "identity": {
+    "stage": "identity",
+    "student_verified": "u-stu-100",
+    "staff_verified": "u-staff-7",
+    "mode": "demo (claims dict accepted)"
+  },
+  "stages": [
+    {
+      "stage": "read_own_record",
+      "decision": "ALLOW",
+      "allowed": true,
+      "reason": "",
+      "token_jti": "07811f5c-6b53-4f2a-8608-ac72dd0af372",
+      "scope": [
+        "sis.check_application_status"
+      ],
+      "audit_id": "08d81c80-7107-4c15-8b71-6d8ace6e5beb"
+    },
+    {
+      "stage": "low_risk_workflow",
+      "decision": "ALLOW",
+      "allowed": true,
+      "reason": "",
+      "token_jti": "d70a981f-d4c2-48aa-a217-2ab46f77c689",
+      "scope": [
+        "crm.create_advising_case"
+      ],
+      "audit_id": "adfbb1c2-306c-4a65-8066-2db77c0d7bc7"
+    },
+    {
+      "stage": "consequential_blocked",
+      "decision": "PENDING_APPROVAL",
+      "allowed": false,
+      "reason": "human approval required",
+      "token_jti": null,
+      "scope": [
+        "comms.send_message"
+      ],
+      "audit_id": "bfdce719-efba-4e97-8dfc-63301a9b3b76"
+    },
+    {
+      "stage": "consequential_approved",
+      "decision": "ALLOW",
+      "allowed": true,
+      "reason": "",
+      "token_jti": "3320291a-6b06-40e0-b6db-15eaedf41424",
+      "scope": [
+        "comms.send_message"
+      ],
+      "audit_id": "9f210123-cc61-49ae-ae91-001d278d9ff5"
+    },
+    {
+      "stage": "approval_replay_rejected",
+      "decision": "PENDING_APPROVAL",
+      "allowed": false,
+      "reason": "human approval required",
+      "token_jti": null,
+      "scope": [
+        "comms.send_message"
+      ],
+      "audit_id": "3a44c938-0c90-47f6-ba16-6ac31fdfa792"
+    }
+  ],
+  "human_approval": {
+    "stage": "human_approval_signed",
+    "reviewer": "u-super-1",
+    "bound_to": {
+      "agent_id": "01-student-family-concierge",
+      "sub": "u-staff-7",
+      "tool": "comms.send_message"
+    },
+    "args_sha256": "ad316c56aa46d7b70b2ea9197dfb72db1d5fbac819a113a42bcb75acf8a5a5d8",
+    "single_use_nonce": "b457a7e2\u2026",
+    "expires_at": 1782536150,
+    "signature_present": true
+  },
+  "metrics_emitted": [
+    "ApprovalRequired"
+  ],
+  "audit_trail": [
+    {
+      "audit_id": "08d81c80-7107-4c15-8b71-6d8ace6e5beb",
+      "ts": "2026-06-27T04:40:50.755472+00:00",
+      "decision": "ALLOW",
+      "tool": "sis.check_application_status",
+      "agent_id": "01-student-family-concierge",
+      "user": "u-stu-100",
+      "roles": [
+        "STUDENT"
+      ],
+      "token_jti": "07811f5c-6b53-4f2a-8608-ac72dd0af372",
+      "scope": [
+        "sis.check_application_status"
+      ],
+      "lineage": {
+        "connector": "sis",
+        "method": "check_application_status"
+      },
+      "approved_by": null,
+      "args": {
+        "student_id": "S-100"
+      }
+    },
+    {
+      "audit_id": "adfbb1c2-306c-4a65-8066-2db77c0d7bc7",
+      "ts": "2026-06-27T04:40:50.755611+00:00",
+      "decision": "ALLOW",
+      "tool": "crm.create_advising_case",
+      "agent_id": "01-student-family-concierge",
+      "user": "u-staff-7",
+      "roles": [
+        "ADMINISTRATOR"
+      ],
+      "token_jti": "d70a981f-d4c2-48aa-a217-2ab46f77c689",
+      "scope": [
+        "crm.create_advising_case"
+      ],
+      "lineage": {
+        "connector": "crm",
+        "method": "create_advising_case"
+      },
+      "approved_by": null,
+      "args": {
+        "student_id": "S-100",
+        "topic": "registration"
+      }
+    },
+    {
+      "audit_id": "bfdce719-efba-4e97-8dfc-63301a9b3b76",
+      "ts": "2026-06-27T04:40:50.755644+00:00",
+      "decision": "PENDING_APPROVAL",
+      "tool": "comms.send_message",
+      "agent_id": "01-student-family-concierge",
+      "user": "u-staff-7",
+      "roles": [
+        "ADMINISTRATOR"
+      ],
+      "reason": "comms.send_message is consequential; human approval required before execution"
+    },
+    {
+      "audit_id": "9f210123-cc61-49ae-ae91-001d278d9ff5",
+      "ts": "2026-06-27T04:40:50.755772+00:00",
+      "decision": "ALLOW",
+      "tool": "comms.send_message",
+      "agent_id": "01-student-family-concierge",
+      "user": "u-staff-7",
+      "roles": [
+        "ADMINISTRATOR"
+      ],
+      "token_jti": "3320291a-6b06-40e0-b6db-15eaedf41424",
+      "scope": [
+        "comms.send_message"
+      ],
+      "lineage": {
+        "connector": "comms",
+        "method": "send_message"
+      },
+      "approved_by": {
+        "sub": "u-super-1",
+        "name": "S. Supervisor",
+        "roles": [
+          "ADMINISTRATOR"
+        ]
+      },
+      "args": {
+        "student_id": "S-100",
+        "channel": "email",
+        "body": "Your registration window opens Monday."
+      }
+    },
+    {
+      "audit_id": "3a44c938-0c90-47f6-ba16-6ac31fdfa792",
+      "ts": "2026-06-27T04:40:50.755819+00:00",
+      "decision": "PENDING_APPROVAL",
+      "tool": "comms.send_message",
+      "agent_id": "01-student-family-concierge",
+      "user": "u-staff-7",
+      "roles": [
+        "ADMINISTRATOR"
+      ],
+      "reason": "comms.send_message is consequential; human approval required before execution"
+    }
+  ],
+  "audit_record_count": 5
+}
