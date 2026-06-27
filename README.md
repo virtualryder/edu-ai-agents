@@ -1,221 +1,596 @@
 # EDU AI Agent Suite
-### Governed AI Agents for Education — Built on AWS
 
-> **The agents are not the product. The governed platform that makes them deployable, auditable, and aligned to student-privacy law (FERPA, COPPA, PPRA, IDEA/504, state law) is.**
+### Governed AI Agents for Education — Built on Amazon Bedrock
 
-> **What this is:** an independent, open-source reference accelerator for discovery, architecture design, demos, and scoped pilots on AWS. **What it is not:** an AWS service or official AWS solution, a compliance certification (FERPA/COPPA/WCAG), a penetration-tested system, or a turnkey production deployment. Production requires customer-specific identity integration, connectors, security hardening, accessibility conformance testing, operations, and legal/privacy review. If you work at AWS, obtain internal approval before using it as a customer-facing asset.
+> **Independent, open-source reference accelerator** for K–12 districts, community colleges, universities, online programs, and workforce-education providers. Eight AI agents that retrieve, analyze, draft, and recommend — while humans keep every consequential decision. Built on Amazon Bedrock with deny-by-default authorization, student-PII masking, human-in-the-loop enforcement, and a tamper-evident audit trail aligned to FERPA, COPPA, IDEA/504, ADA Title II, and state student-privacy law.
 
-A systems integrator deploying AI inside a K–12 district, a community college, a university, an online program, or a workforce-education provider cannot hand a customer a collection of LLM calls and call it done. Every record an education agent touches — a student's schedule, a financial-aid status, an IEP accommodation, a grade, a disciplinary note, a family message — is an *education record* the moment it is personally identifiable, and it carries FERPA, COPPA, PPRA, IDEA/Section 504, and state student-privacy obligations that exist before the first line of agent code is written. This suite embeds those controls from the first commit: deny-by-default authorization, student-PII masking, grounding verification against approved institutional content, prompt version pinning, a human gate that is framework-enforced (not merely documented), and a tamper-evident audit trail aligned to FERPA recordkeeping and the FERPA "school official / direct control" requirement for vendors.
-
-The result is a deployable accelerator — not a certified product — that gives a delivery team a credible, compliance-aligned starting point across eight high-value education workflows that apply across the entire EDU spectrum: K–12 districts, charter and private schools, community colleges, universities, online programs, and adult/workforce education.
-
-**What is deliberately out of scope:** university research administration, advancement/fundraising, and specialized laboratory agents. Those are narrower and do not generalize across institution types. This suite covers what every institution shares — student services, teaching and learning, student success, enrollment, accessibility, and operations.
+> **What this is not:** an AWS service, a compliance certification, a penetration-tested product, or a turnkey deployment. Production requires customer-specific identity integration, connectors, security review, and legal/privacy sign-off. If you work at AWS, obtain internal approval before using this as a customer-facing asset.
 
 ---
 
-## The problem, the cost of doing nothing, and how this solves it
+## Table of Contents
 
-Every institution is already paying for these problems — in staff time, lost tuition, replacement hiring, and accessibility-compliance exposure. The agents target the eight workflows where that bill is largest and most measurable. Figures below are grounded and cited in [`gtm/EDU-DECK-SOURCES.md`](gtm/EDU-DECK-SOURCES.md); dollar figures marked *modeled* show their arithmetic there. Outcomes are modeled to a reference institution, not guaranteed.
-
-| Agent | The issue today | The cost of doing nothing |
-|---|---|---|
-| **01 · Student & Family Concierge** | Families can't self-serve; routine status/aid/deadline questions bury staff. ~4M of 5.4M FAFSA-cycle calls went unanswered *(GAO, 2024)* | **~$1.2M–$1.6M/yr** avoidable contact-handling *(modeled)* |
-| **02 · Tutor & Study Companion** | No scalable, after-hours, equitable help; a purpose-built AI tutor drove **>2× learning** in an RCT *(Harvard, 2024)* | **~$1.2M–$2.5M/yr** to match with human tutoring for 1,000 students *(modeled)* |
-| **03 · Educator Copilot** | Teachers work **53 vs. 44 hrs/wk** with ~4.4 hrs to plan *(RAND, 2024)* | **$11,860–$24,930** to replace one burned-out teacher (~$2.2B/yr nationally) *(LPI, 2024)* |
-| **04 · Assessment & Feedback** | Instructors spend **~9.9 hrs/wk grading**; feedback lags *(2025 survey)* | **~$4,270/instructor/yr** recoverable grading labor *(modeled)* |
-| **05 · Student Success** | Warning signs accrue before anyone acts; **22.4% of first-years don't return** *(NSC, 2025)* | **~$5.6M/yr** forgone recurring tuition *(modeled)* |
-| **06 · Pathway Navigator** | Transfers lose **~43% of credits** on average *(GAO / CHEPP)* | **$13,081 (public) / $26,396 (private)** added cost per transfer student *(CHEPP, 2024)* |
-| **07 · Document & Accessibility** | Document-heavy intake + **ADA Title II (WCAG 2.1 AA) due Apr 26 2027/2028**; ~95% of complaints are PDFs | Settlements ~$30k · judgments ~$85k · class actions ~$400k · program-scale remediation **$665k–$815k** + federal-funding risk |
-| **08 · Operations / IT Service Desk** | Password/access tickets are **20–50% of help-desk volume**, ~$70/reset | **~$300K/yr** deflectable-ticket cost *(modeled)* |
-
-**How the suite solves it.** Each agent follows the same governed pipeline: it **retrieves** only approved institutional content and the acting user's own records through a deny-by-default authorization gateway, **analyzes** the request, **drafts or recommends** an action, **stops at a framework-enforced human gate** for anything consequential, and **writes a tamper-evident audit record** of every access. The agent deflects routine load, answers any hour in any language, and assembles the evidence — while a named human keeps every grade, enrollment change, eligibility decision, financial commitment, and privileged action. The return is the deflected volume, reclaimed staff hours, retained tuition, and a closed accessibility-compliance gap above, captured without surrendering control of a single regulated decision.
-
-### Regulatory alignment (the controls that let a CISO and privacy officer say yes)
-
-The student-privacy and accessibility obligations exist *before* the first line of agent code. They are mapped to concrete platform/AWS controls in [`governance/controls/control_mappings.py`](governance/controls/control_mappings.py) and detailed in [`governance/README.md`](governance/README.md):
-
-| Regime | What it requires | How the platform aligns |
-|---|---|---|
-| **FERPA** | Protect PII in education records; vendor acts under "school official / direct control" | Deny-by-default gateway (agent-grant ∩ user-entitlement), security-trimmed retrieval, student-PII masking at the audit boundary, tamper-evident access log |
-| **COPPA** | Heightened protection + parental consent for under-13 | Minor-aware masking, guardian-role entitlements, consent gating before family outreach |
-| **IDEA / Section 504** | Protect IEP/504 records; humans own eligibility & placement | Least-privilege access, masking, bright-line HITL gate on every consequential decision |
-| **ADA Title II / 508 / WCAG 2.1 AA** | Accessible AI output (deadlines 2027/2028) | Deterministic WCAG pre-flight on generated content; accessible-format transformation (Agent 07) |
-| **GLBA** | Safeguard student financial-aid data | KMS CMK encryption, least privilege, financial-identifier masking |
-| **Title VI / OCR** | No unjustified disparate impact | Four-fifths disparate-impact + representativeness screens on any flag/rank workflow; human equity review |
-| **NIST AI RMF 1.0** | Govern / Map / Measure / Manage AI risk | Grounding verification, hash-pinned prompt registry, evals, red-team, fairness screens, enforced HITL |
+- [Quick Start — Get Running in Minutes](#quick-start)
+- [The Problem This Solves](#the-problem-this-solves)
+- [The Eight Agents](#the-eight-agents)
+- [Stakeholder Positioning](#stakeholder-positioning)
+  - [For the CIO / Director of Architecture](#for-the-cio--director-of-architecture)
+  - [For the CISO / Privacy Officer](#for-the-ciso--privacy-officer)
+  - [For Academic Leadership (Provost, CAO)](#for-academic-leadership)
+  - [For the CFO / VP Finance](#for-the-cfo--vp-finance)
+- [Security & Regulatory Alignment](#security--regulatory-alignment)
+- [Platform Architecture](#platform-architecture)
+- [Deploy to AWS — Step by Step](#deploy-to-aws--step-by-step)
+- [Repository Structure](#repository-structure)
+- [Maturity & Roadmap](#maturity--roadmap)
+- [Compliance Disclaimer](#compliance-disclaimer)
 
 ---
 
-## Positioning
+<a id="quick-start"></a>
+## Quick Start — Get Running in Minutes
 
-| What this is | What this is not |
+No AWS account needed to see the agents work. Every agent runs locally in demo mode with deterministic fixtures — no API keys, no cloud, no cost.
+
+### Prerequisites
+
+- Python 3.10+ and pip
+- Git
+- Docker (optional, for container path)
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/virtualryder/edu-ai-agents.git
+cd edu-ai-agents
+pip install -e platform_core/
+```
+
+### 2. Run any agent locally (demo mode)
+
+```bash
+export EXTRACT_MODE=demo          # deterministic fixtures, no LLM calls
+cd 01-student-family-concierge
+streamlit run app.py              # opens a browser UI
+```
+
+Every agent includes a Streamlit demo app, fixture data, and tests that run without credentials.
+
+### 3. Run the test suite
+
+```bash
+make test                         # runs all governance + agent tests (59 tests)
+```
+
+### 4. Validate CloudFormation templates
+
+```bash
+make lint                         # cfn-lint on all 9 CloudFormation templates
+```
+
+### 5. When you're ready for AWS
+
+Follow the [step-by-step AWS deployment guide](#deploy-to-aws--step-by-step) below, or jump straight to the golden-path runbook:
+
+```bash
+# One-command deploy for Agent 01 (Concierge) — the recommended first agent
+make golden-path-01 \
+  LAMBDA_BUCKET=my-lambda-bucket \
+  TEMPLATE_BUCKET=my-cfn-bucket \
+  IDP_METADATA=https://your-idp/metadata
+```
+
+---
+
+<a id="the-problem-this-solves"></a>
+## The Problem This Solves
+
+Every institution is already paying for these problems — in staff time, lost tuition, replacement hiring, and compliance exposure. These agents target the eight workflows where that cost is largest and most measurable.
+
+| Problem | What it costs today |
 |---|---|
-| A governed, auditable accelerator — the controls a CISO, privacy officer, and academic leadership need to say yes | A certified, validated, production-ready SaaS product you can hand to a customer unchanged |
-| Eight agents with shared platform controls that compound across the portfolio | Eight point tools built independently with no governance consistency |
-| A reference for Amazon Bedrock AgentCore Gateway + Identity + Runtime semantics — testable locally, deployable on AWS | A vendor lock-in — the gateway semantics are replicated in `platform_core/` so the logic is readable and testable without an AWS account |
-| Decision-support — retrieves, analyzes, drafts, recommends, initiates low-risk workflows, escalates exceptions — with humans owning every consequential decision | An autonomous administrator or teacher that decides grades, admissions, discipline, financial aid, special-education eligibility, or placement |
+| **Families can't self-serve.** Routine questions about status, aid, deadlines, and schedules bury staff. ~4M of 5.4M FAFSA-cycle calls went unanswered *(GAO, 2024)* | **~$1.2M–$1.6M/yr** in avoidable contact handling |
+| **No scalable tutoring after hours.** A purpose-built AI tutor drove >2× learning in an RCT *(Harvard, 2024)* | **~$1.2M–$2.5M/yr** to match with human tutoring for 1,000 students |
+| **Teachers are drowning.** 53 vs. 44 hrs/wk with ~4.4 hrs to plan *(RAND, 2024)*. Replacing one burned-out teacher costs $11,860–$24,930 *(LPI, 2024)* | **~$2.2B/yr nationally** in teacher turnover |
+| **Grading eats time.** ~9.9 hrs/wk on grading; feedback arrives too late to help *(2025 survey)* | **~$4,270/instructor/yr** in recoverable labor |
+| **Students leave before anyone acts.** Warning signs accumulate in separate systems. 22.4% of first-years don't return *(NSC, 2025)* | **~$5.6M/yr** in forgone recurring tuition |
+| **Transfer students lose credits.** ~43% of credits lost on average *(GAO / CHEPP)* | **$13,081–$26,396** added cost per transfer student |
+| **Documents pile up, accessibility deadlines loom.** ADA Title II (WCAG 2.1 AA) due Apr 2027/2028; ~95% of accessibility complaints are PDFs | **$665K–$815K** program-scale remediation + federal-funding risk |
+| **IT help desk is buried.** Password/access tickets are 20–50% of volume at ~$70/reset | **~$300K/yr** in deflectable tickets |
+
+**How the suite solves it:** Each agent follows the same governed pipeline — **retrieve** approved content and the user's own records through a deny-by-default gateway → **analyze** the request → **draft or recommend** an action → **stop at a framework-enforced human gate** for anything consequential → **write a tamper-evident audit record**. The agent deflects routine load and answers any hour in any language, while a named human keeps every grade, enrollment change, financial commitment, and privileged action.
+
+---
+
+<a id="the-eight-agents"></a>
+## The Eight Agents
+
+### Recommended deployment order
+
+Start where decision-risk is low and visible return is high. The governed platform (gateway, identity, audit, HITL) is proven on the first agent and shared by every agent after it.
+
+| Phase | Agents | Why |
+|---|---|---|
+| **Land** | **01 — Concierge** | Most visible to the most users, lowest risk, easiest to measure |
+| **Expand (best-first)** | **03 — Educator Copilot**, **07 — Document & Accessibility**, **08 — Service Desk** | Broad visibility, low decision-risk, mature workflows |
+| **Deepen (higher-governance)** | **02 — Tutor**, **04 — Assessment**, **05 — Student Success**, **06 — Pathway Navigator** | Touch learning and student outcomes directly; require stronger evaluation, bias testing, and educator oversight |
+
+---
+
+### Agent 01 — Student & Family Services Concierge
+**The best first deployment. Start here.**
+
+**The challenge:** Education information is scattered across websites, PDFs, portals, and staff inboxes. Families don't know which department to contact or what institutional terms mean. Seasonal peaks (enrollment, FAFSA, registration) overwhelm staff, and calls go unanswered.
+
+**What it does:**
+- **Public mode (unauthenticated):** Answers questions about enrollment, financial aid, calendars, transportation, meals, and deadlines — grounded in approved institutional content, never invented
+- **Authenticated mode:** Checks application/FA status, retrieves schedules, books advising appointments, opens cases, sends forms, and escalates — all scoped to the acting user's own records
+- Multilingual (Amazon Translate/Polly), multi-channel (Amazon Connect voice/SMS/chat, web, mobile)
+
+**Proof points:** UA-Pulaski Tech: 94.5% adoption, 253% admissions-engagement lift. Highline College: 75% reduction in FA status contacts.
+
+**Key regulations:** FERPA, COPPA, ADA/508/WCAG 2.2 AA, Title VI language access
+
+---
+
+### Agent 02 — Personalized Tutor & Study Companion
+
+**The challenge:** Students need help outside class hours at a scale human tutoring cannot meet. Generic public AI has no course context, no safeguards, and will complete assignments for students.
+
+**What it does:**
+- Curriculum-grounded, instructor-controlled Socratic tutoring: hints not answers, concept explanations, practice questions, prerequisite review, study planning
+- Instructor configures source material, pedagogy, tone, prohibited behaviors, and assistance level
+- **Never completes a graded or prohibited assessment** — enforced by Bedrock Guardrails, not just prompting
+- Knowledge base segmented by institution/course/section/role
+
+**Key regulations:** FERPA, COPPA, IDEA/504 accommodations, academic-integrity policy
+
+---
+
+### Agent 03 — Educator Copilot
+
+**The challenge:** Educators spend disproportionate time adapting content for different levels, languages, and needs, and navigating complex LMS screens. Planning time is ~4.4 hrs/wk against 53-hr work weeks.
+
+**What it does:**
+- Drafts lesson plans, differentiates by level/language/accommodation, builds rubrics and quizzes, aligns to standards
+- Executes scoped LMS actions: extend deadlines, create rubric drafts, copy material, draft announcements, summarize discussions
+- **Draft-first pattern — nothing reaches students without educator approval**
+
+**Proof points:** ED 2025 guidance supports AI instructional materials. Instructure IgniteAI validates the review-then-permit pattern.
+
+**Key regulations:** FERPA, ADA/508/WCAG 2.2 AA, state content standards, ED 2025 AI guidance
+
+---
+
+### Agent 04 — Assessment, Grading & Feedback
+
+**The challenge:** Detailed, timely feedback is high-leverage but time-expensive. Instructors spend ~9.9 hrs/wk grading, and delayed feedback loses instructional value.
+
+**What it does:**
+- Rubric-grounded evaluation of open-ended work, draft feedback, misconception identification, reteaching suggestions
+- Reads handwritten/scanned work (Textract) and evaluates spoken responses (Transcribe)
+- **Deterministic rubric scoring service (not LLM)** paired with AI analysis, confidence routing, and human review
+- **Final grades always under educator control — especially high-stakes**
+
+**Proof points:** Benchmark Education (open-ended literacy assessment on Bedrock). Code.org (AI teaching assistant cuts assessment time by up to 50%).
+
+**Key regulations:** FERPA, IDEA/504, accreditation/grading integrity
+
+---
+
+### Agent 05 — Student Success & Proactive Engagement
+
+**The challenge:** Warning signs (attendance, missing work, disengagement) accumulate in separate systems. No one assembles them in time. Staff can't run timely, personalized outreach at scale. 22.4% of first-years don't return.
+
+**What it does:**
+- **Evidence assembly:** Combines authorized signals (attendance, grades, engagement, behavior, surveys, prior interventions) under strict domain-combination limits, summarizes patterns, proposes interventions, drafts cases
+- **Proactive outreach:** On EventBridge signals, selects approved templates, personalizes, translates, sends through authorized channels (Connect/SES/SNS), monitors response
+- **Prediction is separated from evidence-assembly.** The agent assembles evidence for a human decision-maker — it does not autonomously flag, rank, or discipline students
+
+**Key regulations:** FERPA, PPRA (no protected-category inference), equity/anti-discrimination (four-fifths disparate-impact screen, FP/FN monitoring)
+
+---
+
+### Agent 06 — Academic, College & Career Pathway Navigator
+
+**The challenge:** Advisors carry large caseloads navigating complex, changing rules (graduation, prerequisites, transfer, CTE, credentials). Students wait weeks, register wrong, miss prerequisites, or miss pathways entirely. Transfer students lose ~43% of credits on average.
+
+**What it does:**
+- Course planning, graduation-requirement checking, transfer-credit mapping, college exploration, CTE/credential pathways, career/skills exploration, counselor scheduling
+- **Authoritative pathway logic runs in a deterministic rules engine, NOT the LLM** — the agent explains and recommends, the engine computes
+- Explicit three-tier distinction: Option (could take) → Recommendation (agent suggests) → Approved Plan (human signed)
+
+**Key regulations:** FERPA, accreditation/transfer-articulation, student placement on the bright-line list
+
+---
+
+### Agent 07 — Document & Accessibility Services
+
+**The challenge:** Enrollment is the most document-intensive, seasonal, deadline-sensitive process in education. Meanwhile, ADA Title II (WCAG 2.1 AA) deadlines are Apr 2027/2028, and ~95% of accessibility complaints are PDFs. Both problems compete for the same scarce staff.
+
+**What it does:**
+- **Enrollment documents:** Classifies, extracts fields (Textract), validates completeness, identifies discrepancies, requests missing items, prepares structured SIS updates — human-verified before commit
+- **Accessibility transformation:** Transforms approved content into multiple languages, plain-language/reading-level variants, captions/transcripts, audio (Polly), alt text, and accessible formats — WCAG pre-flight gated
+
+**Proof points:** Illinois Institute of Technology: transcript evaluation from 4–6 weeks to ~1 day. Ohio State/Arizona State: PDF accessibility remediation at scale.
+
+**Key regulations:** FERPA, COPPA, ADA/504/508, WCAG 2.2 AA, immunization/residency record rules, records retention
+
+---
+
+### Agent 08 — Operations / IT Service Desk
+
+**The challenge:** IT and administrative staff support large, distributed populations with limited staffing. Password/access tickets are 20–50% of help-desk volume at ~$70/reset. Policy questions and document drafting consume hours that could go to strategic work.
+
+**What it does:**
+- **IT service desk:** Password/SSO resets, WiFi/device diagnostics, LMS access help, classroom tech support, outage status, ticket creation and routing
+- **Staff knowledge & admin workflow:** Policy/procedure answers grounded in approved knowledge base, document drafting (scopes, RFPs, SOWs, board packets, policy comparisons), approval workflow initiation/tracking
+- **Bright line between diagnostics (read) and privileged remediation (HITL-gated write).** Segregation of duties enforced.
+
+**Key regulations:** FERPA (when staff handle student data), records management, segregation of duties, procurement policy
+
+---
 
 ### The bright line: what these agents never decide
 
-Production education agents in 2026 are **bounded agents**. They retrieve approved institutional information, analyze student or operational data, create drafts and recommendations, call approved APIs, initiate low-risk workflows, and escalate exceptions to a human. They do **not** independently make final decisions about **grades, admissions, discipline, financial aid, special-education eligibility, or student placement**. Every consequential action is gated to a named, authorized human whose identity is bound into the record.
+These are **bounded agents**. They retrieve, analyze, draft, recommend, and initiate low-risk workflows. They do **not** independently make final decisions about:
+
+- **Grades or academic evaluations**
+- **Admissions or enrollment decisions**
+- **Discipline or behavioral consequences**
+- **Financial aid awards or eligibility**
+- **Special-education eligibility (IEP/504)**
+- **Student placement**
+
+Every consequential action is gated to a named, authorized human whose identity is bound into the audit record.
 
 ---
 
-## Maturity Ladder
+<a id="stakeholder-positioning"></a>
+## Stakeholder Positioning
 
-Every agent and platform component is positioned honestly against four levels:
+### For the CIO / Director of Architecture
 
-| Level | Description | What it means |
+**What you get:**
+- **API modernization as a byproduct.** The governed MCP gateway exposes narrowly-scoped tools over your SIS, LMS, ERP, CRM, and ITSM. That's a modern, governed API surface useful beyond AI agents.
+- **Build-once economics.** The authorization gateway, identity federation, PII masking, audit trail, and HITL gate are built once and shared by all eight agents. The marginal cost of agents 2–8 drops sharply.
+- **No vendor lock-in.** Three implementation paths: Amazon Bedrock AgentCore Gateway (managed), API Gateway + Lambda (assembled from AWS primitives), or FastMCP (self-built, you own the code). The LLM factory abstracts Bedrock — swap models without touching agent code.
+- **AWS-native, CloudFormation + Terraform.** Deploys into a customer-isolated VPC with KMS CMK encryption, PrivateLink to Bedrock, and infrastructure-as-code you can review line by line.
+
+**Hand them:** `docs/SUITE-ARCHITECTURE.md` (six-layer reference architecture with full AWS service mapping)
+
+### For the CISO / Privacy Officer
+
+**What you get:**
+- **Deny-by-default authorization.** `permitted(tool) ⇔ tool ∈ AGENT_TOOL_GRANTS[agent] ∩ ROLE_ENTITLEMENTS[user_roles]`. An agent can never do more than the human on whose behalf it acts.
+- **No standing service accounts.** Short-lived scoped tokens minted per call via AgentCore Identity / STS. Revoke any agent or tool instantly.
+- **Prompt injection can't drive unapproved writes.** Authorization is enforced outside the model, at the gateway. Even if a prompt injection succeeds inside the LLM, the gateway denies any tool call the agent isn't granted and the user isn't entitled to.
+- **Student-PII masked before inference.** Structured entity recognition replaces identifiers with stable pseudonyms before content enters a prompt or audit record. Bedrock inference is reached over PrivateLink (interface VPC endpoint), not the public internet.
+- **Tamper-evident audit trail.** Append-only DynamoDB (PutItem only, no Update/Delete) + S3 Object Lock WORM (configurable retention, up to COMPLIANCE mode). Every access — ALLOW, DENY, PENDING_APPROVAL, ERROR — logged with lineage.
+- **Framework-enforced HITL gate.** Consequential actions block until a verified reviewer identity is bound into the record. This is tested in CI, not merely documented.
+- **Record-level authorization.** Students and guardians are scoped to their own records. Cross-student access is denied at the gateway.
+- **Transaction-bound signed approvals.** HMAC-SHA256 signed, single-use (nonce-enforced), expiring. An approval for one transaction cannot be replayed for another.
+
+**Hand them:** `docs/STAKEHOLDER-SECURITY-BRIEFINGS.md` (12 tailored stakeholder briefings)
+
+### For Academic Leadership
+
+**What you get:**
+- **The bright line is enforced, not promised.** The agent never decides a grade, admission, discipline, financial-aid award, special-education eligibility, or placement. A test in CI (`governance/tests/test_consequential_bright_line.py`) asserts every irreversible system-of-record commit is human-gated.
+- **Draft-first pattern.** Every AI-generated artifact (lesson plan, feedback, outreach message, accessibility variant) is a draft until a qualified professional approves it.
+- **Grounding verification.** Every fact or figure in a student-facing artifact is traceable to approved institutional content. Grounding fails fast rather than producing a hallucinated policy, deadline, or status.
+- **Fairness monitoring.** Four-fifths disparate-impact screen on any at-risk flag/rank workflow (Title VI / OCR), with false-positive/false-negative monitoring and equity-difference checks.
+
+**Hand them:** `docs/STAKEHOLDER-SECURITY-BRIEFINGS.md` (Chief Academic Officer section)
+
+### For the CFO / VP Finance
+
+**What you get:**
+- **Measurable return on the cost-of-doing-nothing.** Each agent targets the specific cost: deflected contacts ($1.2M–$1.6M/yr), reclaimed grading hours ($4,270/instructor/yr), retained students ($5.6M/yr forgone tuition), deflected IT tickets ($300K/yr), closed accessibility gap ($665K–$815K remediation).
+- **Platform economics.** The control plane is built once. Marginal cost per additional agent is dominated by connector integration and agent-specific logic.
+- **No per-seat SaaS fee.** SI professional services + AWS run cost. Available via AWS Marketplace private offer (EDP-eligible).
+- **Typical payback: 4–9 months** at a reference institution.
+
+**Hand them:** `offerings/COST-ROI-MODEL.md` and `gtm/roi-calculator/`
+
+---
+
+<a id="security--regulatory-alignment"></a>
+## Security & Regulatory Alignment
+
+The student-privacy and accessibility obligations exist *before* the first line of agent code. They are mapped to concrete platform/AWS controls in `governance/controls/control_mappings.py`.
+
+| Regime | What it requires | How the platform aligns |
 |---|---|---|
-| **Documented** | Architecture, workflow, and compliance design are written and reviewed | Useful for customer discovery and architecture review; not runnable |
-| **Demonstrated** | Code runs end-to-end in `EXTRACT_MODE=demo` (no API key, deterministic fixtures) | Proof of concept; suitable for internal demos and early customer workshops |
-| **Deployable** | CloudFormation templates, container contracts (ARM64, `/invocations`, `/ping`), and CI pass; requires customer AWS account and Bedrock access | Suitable for a customer pilot with SI-managed infrastructure |
-| **Production-ready** | Customer security & privacy review complete, IdP integrated, connectors tested against live SIS/LMS/ERP/ITSM, accessibility (WCAG 2.2 AA) conformance tested, penetration test passed | Engagement milestone, not a day-one deliverable |
+| **FERPA** | Protect PII in education records; vendor acts under "school official / direct control" | Deny-by-default gateway (agent-grant ∩ user-entitlement), identity-scoped retrieval, student-PII masking, tamper-evident audit trail satisfying FERPA recordkeeping of disclosures |
+| **COPPA** | Heightened protection + parental consent for under-13 | Minor-aware masking (`custom:under_13` IdP claim), guardian-role entitlements, consent gating, age-appropriate Guardrails |
+| **IDEA / Section 504** | Protect IEP/504 records; humans own eligibility & placement | Highest-sensitivity classification, least-privilege access, masking, bright-line HITL gate on every consequential decision |
+| **ADA Title II / 508 / WCAG 2.1 AA** | Accessible AI output (deadlines Apr 2027/2028) | Deterministic WCAG pre-flight on generated content; accessible-format transformation (Agent 07); VPAT pathway |
+| **GLBA** | Safeguard student financial-aid data | KMS CMK encryption at rest and in transit, least privilege, financial-identifier masking |
+| **Title VI / OCR** | No unjustified disparate impact | Four-fifths disparate-impact screen + representativeness checks on flag/rank workflows; human equity review; FP/FN monitoring |
+| **NIST AI RMF 1.0** | Govern / Map / Measure / Manage AI risk | Grounding verification, hash-pinned prompt registry, eval harness, red-team scenarios, fairness screens, enforced HITL |
+| **State student-privacy laws** | Vary by state (e.g., SOPIPA, BIPA, state DPA requirements) | Parameterized configuration; no student data trains models; data stays in institution's AWS account |
 
-**Current repository status:** foundation and positioning layer in active build. The platform architecture, the MCP authorization gateway design, the EDU compliance spine, the six-layer reference architecture, and the field/GTM collateral are being built first; the eight agents are written to **Documented** depth and brought to **Demonstrated/Deployable** in subsequent passes (mirroring the HCLS suite delivery model).
-
----
-
-## The Eight Agents
-
-Twelve broadly applicable, production-oriented reference workflows, consolidated into eight flagship agents that share one platform.
-
-| # | Agent | Problem it solves | Primary systems | Key regulations |
-|---|---|---|---|---|
-| **01** | **Student & Family Services Concierge** | Education information is scattered across websites, PDFs, departmental pages, portals, and staff inboxes; families don't know which department to contact or what institutional terms mean. After authentication the agent checks status, schedules appointments, opens cases, sends forms, and escalates. | SIS, CRM, scheduling, contact center (Amazon Connect) | FERPA, COPPA, state student-privacy, ADA/Section 508, Title VI language access |
-| **02** | **Personalized Tutor & Study Companion** | Students need help outside class hours at a scale human tutoring cannot meet; generic public AI lacks course context and institutional safeguards. Curriculum-grounded, instructor-controlled Socratic support. | LMS, course content store, knowledge base | FERPA, COPPA (under-13), IDEA/504 accommodations, academic-integrity policy |
-| **03** | **Educator Copilot — Instruction, Differentiation & LMS Workflow** | Educators spend disproportionate time adapting content for different levels, languages, and needs, and navigating complex LMS screens. Drafts lessons, differentiates, builds rubrics/quizzes, and executes scoped LMS actions — always educator-approved before publish. | LMS, curriculum/standards store, SIS (roster) | FERPA, ADA/508/WCAG, state content standards, ED 2025 AI guidance |
-| **04** | **Assessment, Grading & Feedback** | Open-ended grading and detailed feedback are valuable but time-consuming; delayed feedback loses instructional value. Rubric-grounded draft evaluation, misconception detection, low-confidence routing — educator owns final grades. | LMS/assessment store, rubric service | FERPA, IDEA/504, accreditation/grading-integrity policy |
-| **05** | **Student Success & Proactive Engagement** | Warning signs (attendance, missing work, disengagement) accumulate before anyone acts; staff lack capacity for timely, personalized outreach. Assembles evidence, drafts interventions, opens cases, and runs approved event-driven outreach. | SIS, LMS, attendance, advising/case mgmt, comms (Connect/SES/SNS) | FERPA, PPRA, state student-privacy, equity/anti-discrimination, opt-out/consent |
-| **06** | **Academic, College & Career Pathway Navigator** | Advisors carry large caseloads; degree/graduation/transfer rules are complex. Course planning, graduation requirements, transfer-credit mapping, CTE and credential pathways, career exploration, and scheduling — augments the counselor. | SIS, degree-audit/rules engine, labor-market data | FERPA, accreditation, transfer-articulation policy |
-| **07** | **Document & Accessibility Services** | Enrollment is document-heavy and seasonal; institutions must serve students and families across languages, disabilities, and reading levels. Classifies/extracts/validates enrollment documents **and** transforms approved content into accessible, multilingual formats. | SIS/CRM, document store, Textract/Transcribe/Translate/Polly | FERPA, COPPA, ADA/Section 504/508, WCAG 2.2 AA, immunization/residency record rules, records retention |
-| **08** | **Operations Service Desk** | Education IT and administrative staff support large, distributed populations with limited staffing; many tickets and policy questions are repetitive. IT support + internal staff knowledge and administrative workflow (HR, procurement, finance, facilities). | ITSM (ServiceNow/Jira), HR/ERP, procurement, knowledge base | FERPA (staff handling student data), records management, procurement policy, segregation of duties |
-
-**Why this sequencing:** Agents 01, 03, 08, and 07 are the **best first deployments** — broad visibility, comparatively low decision-risk, mature workflows, and measurable deflection/cycle-time return. Agents 02, 04, 05, and 06 are **high-value, higher-governance** — they touch learning and student outcomes directly, so they require stronger evaluation, educator oversight, bias testing, evidence retention, and escalation. The single-best entry point is **Agent 01 (Concierge)**: it is the most visible to the most users, the lowest-risk, and the easiest to measure. See `SOLUTION-FIELD-GUIDE.md` for the full adoption path and the "land with 01, expand to the portfolio" motion.
+**Important:** This suite provides the *control design*. It is not a compliance certification. The institution operationalizes, validates, and accepts accountability for compliance — including IdP integration, role mapping, connector validation, Guardrail tuning, WCAG conformance testing, and legal/privacy review.
 
 ---
 
-## Shared Platform
+<a id="platform-architecture"></a>
+## Platform Architecture
 
-Every agent shares the same platform stack. Controls compound: a governance improvement to the student-PII masker, the grounding checker, or the audit trail benefits all eight agents simultaneously.
+Every agent shares the same six-layer platform. Controls compound: a governance improvement to the PII masker, grounding checker, or audit trail benefits all eight agents simultaneously.
 
-### LLM Factory
-A single abstraction routes inference to **Anthropic Claude** (API) or **Amazon Bedrock** depending on deployment mode. On the Bedrock path, model traffic uses AWS PrivateLink (an interface VPC endpoint) rather than the public internet — Bedrock runs in the AWS service, reached privately — and direct identifiers are minimized/masked before inference. `EXTRACT_MODE=demo` bypasses the LLM entirely for local, deterministic testing.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 1 — UX                                                   │
+│  LMS (LTI 1.3) · Student/Family Portal · Teams · Amazon        │
+│  Connect (voice/SMS/chat) · Web/Mobile · API                   │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 2 — Supervisor & Specialist Agents                       │
+│  LangGraph StateGraph per agent · Intake → Retrieval →          │
+│  Draft/Analyze → Policy Gate → HITL Gate → Finalize             │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 3 — MCP Authorization Gateway                            │
+│  Deny-by-default · Identity verification · Role intersection    │
+│  · Record-level authz · Human approval gate · Scoped tokens     │
+│  · Student-PII masking · Append-only audit                      │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 4 — Data & Semantic                                      │
+│  Bedrock Knowledge Bases (OpenSearch/Aurora pgvector) ·          │
+│  Governed data lake (S3+Glue+Lake Formation) · SoR connectors   │
+│  (SIS/LMS/ERP/CRM/ITSM) · Textract/Transcribe ingestion        │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 5 — Models & Deterministic Services                      │
+│  Bedrock Claude via PrivateLink · Bedrock Guardrails ·           │
+│  Deterministic services (degree audit, rubric scoring,           │
+│  validation) · SageMaker AI (early-warning, where justified)    │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 6 — Governance & Observability                           │
+│  Grounding verification · Hash-pinned prompt registry ·          │
+│  Eval harness · HITL gate tests · Red team · Fairness screens   │
+│  · CloudWatch alarms · CloudTrail · Cost guard                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Student-PII Masking
-Structured entity recognition replaces student identifiers, dates of birth, guardian details, and record-linkable fields with stable pseudonyms before any content enters a prompt or an audit record. The masker is stateless and runs before every gateway invocation. This is the EDU analog of HIPAA Safe-Harbor masking, tuned to FERPA-protected identifiers and COPPA's heightened bar for children under 13.
+### Key AWS Services
 
-### MCP Authorization Gateway
-The governed front door between every agent and every system of record. **No agent calls a vendor system (SIS, LMS, ERP, CRM, ITSM) directly.** Every tool call passes through one enforcement point implementing:
-
-1. **Identity verification** — verified IdP claims (the institution's own SSO via IAM Identity Center / Cognito); deny on missing subject.
-2. **Deny-by-default authorization with least-privilege intersection** — `permitted(tool) ⇔ tool ∈ AGENT_TOOL_GRANTS[agent] ∩ ROLE_ENTITLEMENTS[user_roles]`, where roles are distinct for **student, guardian, educator, counselor, and administrator**. An agent can never do more than the human on whose behalf it acts — and a guardian's access is scoped by the FERPA rights that transfer to the student at 18 / postsecondary enrollment.
-3. **Human approval gate** — high-risk (write/irreversible/consequential) tools block until a verified reviewer identity is bound into the record.
-4. **Short-lived scoped tokens** — minted per call via AgentCore Identity / STS; no standing service accounts.
-5. **PII-masked append-only audit** — every attempt (ALLOW/DENY/PENDING_APPROVAL/ERROR) logged with lineage to the system of record, satisfying FERPA's recordkeeping of disclosures.
-
-Reference logic: `platform_core/edu_agent_platform/mcp_gateway/` — a testable Python model of **Amazon Bedrock AgentCore Gateway + AgentCore Identity**. Tool names (`connector_kind.operation`) map 1:1 to AgentCore Gateway targets. The default deploy provisions the AgentCore deployment contract (config in SSM) and a reference provisioning path in `infra/cloudformation/agentcore-gateway.yaml`; completing the live Gateway/Runtime requires a customer-supplied custom-resource provisioner. The native Step Functions + Lambda path is fully real (four Lambdas + a `waitForTaskToken` gate); its Lambda artifacts are built via `scripts/package_lambdas.sh`.
-
-**You have options for how to build this layer.** `docs/WHY-THE-MCP-LAYER.md` is the plain-English explainer (with a talk track and objection handling) for *why* agents that act on systems need a governed access layer and why to fund it in Phase 1 — and it compares the three implementation paths: **AgentCore Gateway** (managed), **Bedrock-native API Gateway + Lambda** (assembled from AWS primitives), and **FastMCP** (a self-built MCP server when the institution wants to own the code). The point that matters is the same in all three: clean, governed API access for agents to the data itself.
-
-### Connector Framework
-Adapter layer for each system category (SIS, LMS, ERP/SIS-finance, CRM, ITSM, scheduling, transportation, library, RWD/labor-market). Demo mode uses deterministic JSON fixtures; production connectors point at live PowerSchool, Banner/Workday, Canvas/Blackboard/Schoology, ServiceNow, and similar APIs. The connector interface is identical in both modes — the gateway does not know which backend is live.
-
-### Governance & Evaluation Framework
-Built in from the first commit, not added after a pilot. See `governance/README.md` for the full EDU compliance spine (FERPA, COPPA, PPRA, IDEA/Section 504, ADA/508/WCAG 2.2 AA, state student-privacy law) and these controls:
-
-| Control | Implementation |
+| Service | Role |
 |---|---|
-| **Grounding verification** | Every fact or figure in a student- or family-facing artifact is traceable to approved institutional content; grounding fails fast rather than producing a hallucinated policy, deadline, or status |
-| **Prompt version registry** | Prompts are registered and hash-pinned in `governance/prompt_manifest.json`; CI fails on un-bumped drift (model-change control) |
-| **Structural eval harness** | Golden-artifact regression for advising plans, intervention drafts, rubric-graded feedback, and accessible-content output; runs in CI with no API keys |
-| **HITL gate tests** | Framework-enforced human approval is tested, not merely documented — `governance/tests/test_hitl_gates.py` |
-| **Red team** | Prompt injection (incl. injection hidden in a student-submitted document or inbound email), PII exfiltration, and authorization-bypass scenarios — `governance/redteam/` |
-| **Fairness checks** | Equity/representativeness flags on student-success recommendations and intervention targeting, plus the **four-fifths disparate-impact screen** (`governance/fairness/disparate_impact.py`) for any at-risk flag/rank workflow (Title VI / OCR exposure), with false-positive/false-negative monitoring |
-| **Accessibility pre-flight** | Deterministic WCAG 2.1 AA checks on AI-generated content (alt text, heading order, link purpose, plain-language grade) — ADA Title II puts AI output in scope (deadlines Apr 26 2027 / 2028); `governance/accessibility/wcag.py` |
-| **Consequential bright-line** | A test asserts every irreversible system-of-record commit is human-gated and **no agent can execute one without approval** — defense-in-depth, enforced in `governance/tests/test_consequential_bright_line.py` |
-| **Control mappings** | `governance/controls/control_mappings.py` ties each obligation (FERPA, COPPA, IDEA/504, ADA Title II, GLBA, Title VI, NIST AI RMF, PCI) to the concrete platform/AWS control and its maturity |
+| **Amazon Bedrock** | Claude inference via PrivateLink; Guardrails (PII, age-appropriate, topic filters); Knowledge Bases |
+| **Bedrock AgentCore** | Gateway (deny-by-default tool authorization), Identity (scoped tokens), Runtime (container hosting) |
+| **Amazon Cognito** | IdP federation (SAML/OIDC), custom claims (edu_role, under_13, rights_transferred), MFA |
+| **AWS Step Functions** | Agent orchestration, `waitForTaskToken` HITL gate (72h timeout, fail-closed) |
+| **AWS Lambda** | Deterministic functions (scoring, validation, connectors), AgentCore provisioner |
+| **Amazon DynamoDB** | Append-only audit trail (PutItem only), HITL queue, session state |
+| **Amazon S3** | Object Lock WORM (configurable retention, GOVERNANCE or COMPLIANCE mode), knowledge base storage |
+| **AWS KMS** | Customer-managed CMK for encryption at rest (DynamoDB, S3, Secrets Manager, SNS) |
+| **Amazon CloudFront + WAFv2** | Edge protection (managed rule groups, rate limiting, HSTS, TLS 1.2+) |
+| **Amazon Connect** | Voice/SMS/chat channels for Concierge and Outreach agents |
+| **Amazon Textract / Transcribe / Translate / Polly** | Document extraction, speech-to-text, multilingual, text-to-speech |
+| **Amazon CloudWatch** | Alarms (denial spikes, PII masking failures, HITL backlog, Bedrock throttling, cost guard), dashboards |
 
 ---
 
-## How to pitch this suite
+<a id="deploy-to-aws--step-by-step"></a>
+## Deploy to AWS — Step by Step
 
-**The one-line frame.** "The agents are not the product — the governed platform that makes them FERPA/ADA-defensible, auditable, and deployable on AWS is. We start where the decision-risk is low and the visible return is high, prove the gateway/audit/human-gate in production, then expand."
+This guide walks you through deploying Agent 01 (Student & Family Concierge) into your own AWS account. No prior AWS experience is assumed — every step includes the exact commands to run. For the full copy-pasteable runbook, see [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md).
 
-**Lead with the cost of doing nothing, not the technology.** Open on the institution's own version of the cost table above — unanswered contacts, grading hours, non-returning students, accessibility deadlines. The buyer feels the bill before they hear the word "agent."
+### Before You Begin — What You'll Need
 
-**Tailor the value to the person in the room:**
+| Item | Where to get it | Time |
+|---|---|---|
+| An AWS account | [aws.amazon.com](https://aws.amazon.com) — create one if you don't have it | 10 min |
+| AWS CLI v2 installed | [Install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | 5 min |
+| IAM user or role with admin permissions | AWS Console → IAM → Users | 5 min |
+| An identity provider (IdP) — Okta, Azure AD, Google Workspace, or similar | Your IT team provides the SAML/OIDC metadata URL | Ask IT |
+| Amazon Bedrock model access enabled | AWS Console → Bedrock → Model access → Enable Claude | 5 min |
 
-- **CFO / VP Finance** — reclaimed staff hours, deflected contacts/tickets, retained tuition, and avoided accessibility-litigation exposure. Anchor on the *cost of doing nothing* figure and the modeled payback (typically 4–9 months at a reference institution).
-- **CIO / Director of Infrastructure** — AWS-native, per-customer VPC isolation, deploys with the runbooks in this repo, no model lock-in (LLM factory abstracts Bedrock). Hand them `decks/EDU-CIO-Adoption-Review.pptx` — it states the shortfalls and the responsibility split honestly, which builds more trust than a flawless pitch.
-- **CISO / Privacy Officer** — deny-by-default authorization, student-PII masking, framework-enforced HITL on consequential actions, tamper-evident audit, and the regulatory-alignment table above. The controls exist in code with passing tests, not as promises.
-- **Provost / Academic leadership** — the bright line: the agent never decides a grade, admission, discipline, financial aid, special-education eligibility, or placement. It augments educators and advisors; humans stay accountable.
+### Step 1 — Set up your environment
 
-**Sequence the portfolio.** Land with the low-decision-risk, high-visibility agents (**01 Concierge, 03 Educator Copilot, 07 Document & Accessibility, 08 Service Desk**), then expand to the higher-governance agents (**04 Assessment, 05 Student Success, 06 Pathway**) once the platform is proven. Use `decks/EDU-Agentic-AI-Suite-Executive-Overview.pptx` for the portfolio story and the per-agent decks in `decks/` for the deep dive. Field collateral: `gtm/BATTLECARD.md`, `gtm/SOW-TEMPLATE.md`, `gtm/roi-calculator/`, and `SOLUTION-FIELD-GUIDE.md`.
-
-## Qualifying questions to stage an engagement
-
-Use these in discovery to scope the pilot, size the ROI, and surface the work that belongs to the customer (see `docs/SHARED-RESPONSIBILITY-MATRIX.md`):
-
-- **Pain & baseline** — Which of the eight workflows hurts most right now? What's your current volume (contacts, tickets, applications, at-risk students) and what does a unit cost you today? *(This becomes the cost-of-doing-nothing number on the proposal.)*
-- **Systems of record** — What are your SIS, LMS, ERP, and ITSM platforms, and can we reach them over PrivateLink/Direct Connect? Are there APIs, or is integration custom?
-- **Identity** — What IdP do you run (Okta, Azure AD, Google)? SAML or OIDC? Is MFA enforced? How do roles (student, guardian, educator, counselor, registrar, staff) map to IdP groups?
-- **AWS & data residency** — Do you have an AWS account/landing zone? Is Amazon Bedrock model access enabled in-region? Any data-residency or in-state requirements?
-- **Compliance posture** — Who owns the FERPA "school official" determination and the DPA? Where are you on the ADA Title II (WCAG 2.1 AA) deadline? Do you need a disparate-impact review for any at-risk flagging?
-- **Human-in-the-loop** — Who are the named approvers for each consequential action, and do they have a review queue/UI today or do we build one?
-- **Knowledge content** — Is there an approved, current corpus (policies, catalog, rubrics, runbooks) to ground retrieval, or does it need curation first?
-- **Success metrics & timeline** — What outcome would make this a win (deflection %, hours saved, retention points, turnaround), and what's the decision/pilot timeline?
-
----
-
-## AWS Deployment
-
-Honest gaps and the remediation roadmap: see `docs/PRODUCTION-READINESS-ACTION-PLAN.md`.
-
-### Full step-by-step runbooks (anyone can follow them)
-- **`docs/AWS-DEPLOYMENT-REFERENCE.md`** — the master, shared, step-by-step path every agent uses, in deploy order: prerequisites → KMS CMK → VPC/endpoints → Cognito + IdP federation + JWT → CloudFront + WAF → JWT exchange/authorization → application tier (AgentCore Runtime or Step Functions native) → tools/connectors + secrets → S3 Object Lock (WORM) + append-only DynamoDB audit → observability → HITL gate → validation/smoke → teardown. Includes a request-flow walkthrough, an architecture diagram, and a layer→template map.
-- **`runbooks/agent-deploy/<NN>-*.md`** — one runbook per agent (agent creation, its exact tool grants and connectors, agent-specific infra, smoke test, teardown), building on the master reference.
-- **`docs/AWS-DEPLOYMENT-VALIDATION.md`** — the automated checks behind "validated to be deployable on AWS" (governance + gateway tests, CloudFormation parse, container contract, WORM/CMK presence).
-
-### Deploy it yourself — three commands (container path)
-The `scripts/` directory builds and deploys an agent; `docs/DEPLOYMENT-HANDBOOK.md` is the full
-empty-account→running-agent runbook (prerequisites, Bedrock model access, Guardrail, IdP, validation
-checklist).
+Open a terminal and configure your AWS credentials:
 
 ```bash
-scripts/local_smoke.sh 01-student-family-concierge            # prove the runtime locally (no cloud)
-IMAGE=$(scripts/build_and_push_image.sh --agent 01-student-family-concierge --region us-east-1 \
-        | sed -n 's/^ContainerImageUri=//p')                  # build ARM64 image -> ECR
-scripts/deploy.sh --env prod --agent-id 01-concierge --mode container \
-  --template-bucket my-cfn-bucket --idp-metadata https://idp/.../metadata --image "$IMAGE"
+aws configure
+# Enter your Access Key ID, Secret Access Key, region (us-east-1), and output format (json)
+
+# Verify Bedrock access
+aws bedrock list-foundation-models --query "modelSummaries[?contains(modelId,'claude')]" --output table
 ```
 
-- **Turnkey POC demo** (a running URL, no IdP/SoR wiring): `infra/cloudformation/demo-in-a-box.yaml` (ECS Fargate + ALB).
-- **Native path** (Step Functions + Lambda + `waitForTaskToken` HITL gate): `scripts/package_lambdas.sh` then `scripts/deploy.sh --mode native`.
-- **Author a NEW agent** (it inherits this whole deployment path): `docs/CREATE-A-NEW-AGENT.md`.
-- **Scripts reference**: `scripts/README.md`. **AWS prerequisites & funding**: `docs/AWS-FUNDING-AND-PREREQUISITES.md`.
+If the Bedrock command returns Claude models, you're ready. If not, go to the [Bedrock console](https://console.aws.amazon.com/bedrock/) → Model access → Request access to Anthropic Claude models.
 
-### CloudFormation Quick Deploy (primary path)
-One master template provisions a customer-isolated environment:
+### Step 2 — Create staging buckets
 
-```
-infra/cloudformation/
-├── quickstart.yaml          # Master — nests all stacks
-├── network.yaml             # VPC, subnets, NAT, security groups
-├── security.yaml            # KMS, Bedrock Guardrail, Cognito/IAM Identity Center federation, agent IAM role
-├── data.yaml                # Append-only DynamoDB audit, S3 Object Lock WORM, HITL table, governed data-lake refs
-├── agentcore-gateway.yaml   # Bedrock AgentCore Gateway + Identity — one target per SoR
-└── agent-service.yaml       # Per-agent Step Functions + Lambdas (native) or AgentCore Runtime (container)
+CloudFormation needs two S3 buckets: one for templates, one for Lambda code.
+
+```bash
+# Pick a unique prefix (e.g., your org name)
+PREFIX="myorg-edu-agents"
+REGION="us-east-1"
+
+aws s3 mb s3://${PREFIX}-templates --region $REGION
+aws s3 mb s3://${PREFIX}-lambda-code --region $REGION
 ```
 
-### Terraform Parity
-`infra/terraform/` provides equivalent IaC for platform teams standardized on Terraform — identical resource topology, different surface syntax.
+### Step 3 — Deploy the network and security foundation
 
-### AgentCore Runtime (container lift) and Strands + Step Functions (native rebuild)
-All agents target the AgentCore container contract (`/invocations`, `/ping`, port 8080, ARM64). The native rebuild runs deterministic core functions as Lambda, Strands Agents SDK for Bedrock inference, and Step Functions for orchestration with a `waitForTaskToken` HITL gate. See `aws-native-reference/` and the step-by-step `docs/DEPLOYMENT-HANDBOOK.md` (empty AWS account → running, governed, human-gated agent).
+This creates your isolated VPC, KMS encryption key, Cognito identity pool, and Bedrock Guardrail.
+
+```bash
+# Upload templates to your staging bucket
+aws s3 sync infra/cloudformation/ s3://${PREFIX}-templates/
+
+# Deploy the master stack (nests network + security + data)
+aws cloudformation deploy \
+  --template-file infra/cloudformation/quickstart.yaml \
+  --stack-name edu-agents-foundation \
+  --parameter-overrides \
+      Environment=test \
+      AgentId=01-concierge \
+      TemplateBaseUrl=https://${PREFIX}-templates.s3.amazonaws.com \
+      IdpMetadataUrl=https://your-idp.example.com/saml/metadata \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --region $REGION
+```
+
+**What this creates:**
+- A VPC with public and private subnets, NAT gateway, and PrivateLink endpoint to Bedrock
+- A KMS customer-managed key (CMK) encrypting all data at rest
+- A Cognito user pool federated with your IdP (SAML or OIDC)
+- IAM roles scoped to specific Bedrock model ARNs
+- An append-only DynamoDB audit table and S3 Object Lock bucket
+
+### Step 4 — Deploy the edge layer (CloudFront + WAF)
+
+This must deploy in `us-east-1` (CloudFront requirement):
+
+```bash
+aws cloudformation deploy \
+  --template-file infra/cloudformation/edge.yaml \
+  --stack-name edu-agents-edge \
+  --parameter-overrides \
+      Environment=test \
+      DomainName=agents.yourinstitution.edu \
+      HostedZoneId=Z0123456789ABCDEFGHIJ \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --region us-east-1
+```
+
+**What this creates:**
+- CloudFront distribution with caching disabled on API paths (no student data cached)
+- WAFv2 with three AWS managed rule groups (CommonRuleSet, KnownBadInputs, IpReputationList) + rate limiting
+- TLS certificate (ACM) with auto-renewal
+- Security headers (HSTS, X-Frame-Options DENY, Content-Type nosniff)
+
+### Step 5 — Deploy observability
+
+```bash
+aws cloudformation deploy \
+  --template-file infra/cloudformation/observability.yaml \
+  --stack-name edu-agents-observability \
+  --parameter-overrides \
+      Environment=test \
+      AgentId=01-concierge \
+      OpsEmail=your-ops-team@institution.edu \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --region $REGION
+```
+
+**What this creates:**
+- CloudWatch alarms for: authorization denial spikes, PII masking failures, HITL queue backlog, Bedrock throttling, Lambda errors, DynamoDB audit write failures, cost guard
+- Operational dashboard
+- KMS-encrypted SNS topic for alert notifications
+
+### Step 6 — Deploy Agent 01
+
+**Option A: One-command deploy (recommended)**
+
+```bash
+make golden-path-01 \
+  LAMBDA_BUCKET=${PREFIX}-lambda-code \
+  TEMPLATE_BUCKET=${PREFIX}-templates \
+  IDP_METADATA=https://your-idp.example.com/saml/metadata
+```
+
+**Option B: Container path (for custom runtime)**
+
+```bash
+# Build and push the container image
+IMAGE=$(scripts/build_and_push_image.sh \
+  --agent 01-student-family-concierge \
+  --region $REGION \
+  | sed -n 's/^ContainerImageUri=//p')
+
+# Deploy the agent service
+scripts/deploy.sh \
+  --env test \
+  --agent-id 01-concierge \
+  --mode container \
+  --template-bucket ${PREFIX}-templates \
+  --idp-metadata https://your-idp.example.com/saml/metadata \
+  --image "$IMAGE"
+```
+
+### Step 7 — Smoke test
+
+Run these four tests to verify the deployment is working correctly:
+
+```bash
+# 1. Local smoke test (no cloud needed)
+scripts/local_smoke.sh 01-student-family-concierge
+
+# 2. Authenticated read — should return ALLOW in audit
+# (Use a test user with the STUDENT role)
+
+# 3. Cross-record denial — student A requesting student B's records
+# should return DENY in audit
+
+# 4. Consequential action — should block with PENDING_APPROVAL
+# until a reviewer approves it
+```
+
+Check the DynamoDB audit table to verify each test produced the expected result (ALLOW, DENY, or PENDING_APPROVAL).
+
+### Step 8 — Connect to your systems of record
+
+Replace fixture connectors with live connectors to your SIS, CRM, and scheduling systems:
+
+```bash
+# Store connector credentials in Secrets Manager (CMK-encrypted)
+aws secretsmanager create-secret \
+  --name edu-agents/test/sis-credentials \
+  --secret-string '{"api_key":"...","base_url":"https://your-sis.example.com/api"}' \
+  --kms-key-id alias/edu-agents-cmk \
+  --region $REGION
+```
+
+Connector adapters are in `platform_core/edu_agent_platform/connectors/`. Demo mode uses JSON fixtures; swap to `live` mode by setting `CONNECTOR_MODE=live`.
+
+### Step 9 — Go-live checklist
+
+Before opening to users, verify every item:
+
+- [ ] IdP federation tested with real users (student, guardian, educator, staff roles)
+- [ ] MFA enforced on Cognito (`MfaConfiguration=ON` for production)
+- [ ] Bedrock Guardrail tuned to your student population (including minors)
+- [ ] Connectors tested against live SIS/LMS/ERP
+- [ ] HITL reviewer workflow operational (who approves? where do they see the queue?)
+- [ ] WORM retention period set (`WormRetentionDays` — no default, you must choose)
+- [ ] `WormMode=COMPLIANCE` for production (irreversible — cannot delete records until retention expires)
+- [ ] CloudWatch alarms routing to your ops team
+- [ ] WCAG 2.2 AA conformance tested on any student-facing surface
+- [ ] FERPA "school official" DPA executed between institution and your organization
+- [ ] Security review / pen test completed
+- [ ] Backup and disaster recovery tested (RTO/RPO documented)
+- [ ] Cost monitoring enabled (Bedrock inference is the largest variable cost)
+- [ ] Localhost callback URL replaced with your production domain
+- [ ] Egress CIDR restricted from `0.0.0.0/0` to your known endpoints
+
+### Teardown
+
+To remove a test deployment (reverse dependency order):
+
+```bash
+aws cloudformation delete-stack --stack-name edu-agents-observability --region $REGION
+aws cloudformation delete-stack --stack-name edu-agents-edge --region us-east-1
+aws cloudformation delete-stack --stack-name edu-agents-foundation --region $REGION
+```
+
+Note: Resources with `DeletionPolicy: Retain` (KMS key, audit data) survive deletion. S3 Object Lock COMPLIANCE-mode objects are immutable until retention expires.
+
+### Detailed reference docs
+
+| Document | What it covers |
+|---|---|
+| [`docs/AWS-DEPLOYMENT-REFERENCE.md`](docs/AWS-DEPLOYMENT-REFERENCE.md) | Master 13-section deploy path with request-flow walkthrough and architecture diagram |
+| [`docs/DEPLOYMENT-HANDBOOK.md`](docs/DEPLOYMENT-HANDBOOK.md) | Console + CLI walkthrough from empty AWS account to running agent |
+| [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md) | Copy-pasteable golden-path runbook for Agent 01 with verification at every step |
+| [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md) | Honest gap register with P0–P4 priorities and remediation status |
 
 ---
 
+<a id="repository-structure"></a>
 ## Repository Structure
 
 ```
@@ -223,7 +598,8 @@ edu-ai-agents/
 ├── README.md                            # This file
 ├── SUITE-STATUS.md                      # Current state + changelog
 ├── SOLUTION-FIELD-GUIDE.md              # SI sales + SA qualification and adoption path
-├── ENTERPRISE-PLATFORM.md               # Platform story — API modernization, MCP gateway, compliance layers
+├── ENTERPRISE-PLATFORM.md               # Platform story — API modernization, MCP gateway
+├── SECURITY.md                          # Vulnerability disclosure policy
 │
 ├── 01-student-family-concierge/         # Best-first deployment (land here)
 ├── 02-tutor-study-companion/
@@ -233,45 +609,97 @@ edu-ai-agents/
 ├── 06-pathway-navigator/
 ├── 07-document-accessibility-services/
 ├── 08-operations-service-desk/
-│   (each: README.md + docs/{aws-deployment-guide, integration-guide, edu-compliance, roi-analysis}.md)
+│   (each: README.md, demo app, fixtures, tests, docs/)
 │
-├── platform_core/                       # Shared platform — LLM factory, student-PII masker, MCP gateway, connectors
+├── platform_core/                       # Shared platform
 │   └── edu_agent_platform/
-│       ├── mcp_gateway/                 # Reference logic for Bedrock AgentCore Gateway + Identity
+│       ├── mcp_gateway/                 # MCP authorization gateway + approvals
 │       ├── pii_masker/                  # FERPA/COPPA student-PII masking
-│       └── connectors/                  # SIS · LMS · ERP · CRM · ITSM · scheduling (fixture + live)
+│       └── connectors/                  # SIS · LMS · ERP · CRM · ITSM (fixture + live)
 │
-├── scripts/                             # build_and_push_image · package_lambdas · deploy · local_smoke (+ README)
-├── governance/                          # EDU compliance spine + grounding, evals, HITL tests, red team, fairness
-│   ├── accessibility/                   # WCAG 2.1 AA / ADA Title II pre-flight on AI-generated content
-│   ├── fairness/                        # representativeness + four-fifths disparate-impact screen
-│   ├── controls/                        # obligation → platform/AWS control mappings (FERPA/COPPA/IDEA/ADA/...)
-│   └── evals/                           # structural golden-artifact regression (no API key)
-├── aws-native-reference/                # AWS-native deployment (container + native) for all 8 agents
-├── runbooks/
-│   └── agent-deploy/                    # Step-by-step per-agent AWS deploy runbooks (8) + ops runbooks
-├── decks/                               # GTM: 8 agent decks + suite overview + CIO adoption review (.pptx)
-├── gtm/                                 # BATTLECARD · SOW · ROI calculator · EDU-DECK-SOURCES · DECK-CONTENT-SPEC
+├── governance/                          # EDU compliance spine
+│   ├── accessibility/                   # WCAG 2.1 AA pre-flight
+│   ├── fairness/                        # Disparate-impact screen
+│   ├── controls/                        # Obligation → control mappings
+│   ├── redteam/                         # Prompt injection, PII exfil, authz bypass
+│   └── evals/                           # Golden-artifact regression
+│
 ├── infra/
-│   ├── cloudformation/                  # CloudFormation quick-deploy (primary path)
-│   └── terraform/                       # Terraform parity
-├── docs/
-│   ├── AWS-DEPLOYMENT-REFERENCE.md       # Master step-by-step shared deploy path (edge→identity→app→data)
-│   ├── AWS-DEPLOYMENT-VALIDATION.md      # Automated "deployable on AWS" validation report
-│   ├── DEPLOYMENT-HANDBOOK.md            # Console + CLI step-by-step deploy
-│   ├── SHARED-RESPONSIBILITY-MATRIX.md   # Who owns what: user / customer / developer-SI
-│   ├── WHY-THE-MCP-LAYER.md              # Account-team explainer + gateway implementation options
-│   ├── SUITE-ARCHITECTURE.md             # 6-layer reference architecture + AWS service mapping
-│   └── STAKEHOLDER-SECURITY-BRIEFINGS.md # Per-stakeholder security pitch
-└── offerings/                           # POC · pilot · assessment · managed service · ROI · objections · competitive · TPRM
+│   ├── cloudformation/                  # 9 CloudFormation templates
+│   │   ├── quickstart.yaml              # Master — nests all stacks
+│   │   ├── network.yaml                 # VPC, subnets, NAT, PrivateLink
+│   │   ├── security.yaml                # KMS, Cognito, IAM, Guardrail
+│   │   ├── data.yaml                    # Audit (DynamoDB), WORM (S3 Object Lock)
+│   │   ├── edge.yaml                    # CloudFront + WAFv2 + TLS
+│   │   └── observability.yaml           # CloudWatch alarms + dashboard + SNS
+│   ├── terraform/                       # Terraform parity
+│   └── lambdas/                         # AgentCore provisioner Lambda
+│
+├── scripts/                             # Build, deploy, smoke test
+├── runbooks/                            # Step-by-step deploy runbooks
+├── decks/                               # GTM slide decks (.pptx)
+├── gtm/                                 # Battlecard, SOW, ROI calculator
+├── docs/                                # Architecture, deployment, security briefings
+└── offerings/                           # Competitive positioning, cost/ROI model
 ```
 
 ---
 
+<a id="maturity--roadmap"></a>
+## Maturity & Roadmap
+
+Every agent and platform component is positioned honestly against four levels:
+
+| Level | Description | Where we are |
+|---|---|---|
+| **Documented** | Architecture, workflow, and compliance design written and reviewed | All 8 agents |
+| **Demonstrated** | Code runs end-to-end in demo mode (no API key, deterministic fixtures) | All 8 agents |
+| **Deployable** | CloudFormation templates, container contracts, CI pass; requires customer AWS account | Agent 01 golden path; foundation IaC for all |
+| **Production-ready** | Customer security/privacy review, IdP integrated, live connectors tested, WCAG conformance, pen test | Engagement milestone — requires customer-specific work |
+
+### What's been built and verified
+
+- **Shared platform:** LLM factory, PII masker, MCP gateway with record-level authz, signed approvals, connector framework, auth hardening
+- **Governance in code:** Grounding verification, hash-pinned prompt registry (8 prompts), eval harness, fairness screens (disparate-impact + representativeness), red team scenarios, HITL gate tests, consequential bright-line test, WCAG pre-flight, control mappings
+- **Infrastructure:** 9 CloudFormation templates (network, security, data, edge, observability, quickstart + agent-specific), Terraform parity, AgentCore provisioner Lambda
+- **Security CI:** Bandit (SAST), pip-audit (CVEs), detect-secrets, checkov (IaC), SBOM generation, Dependabot
+- **Tests:** 59 passing (governance + gateway + agent tests)
+- **Field collateral:** 10 slide decks, battlecard, SOW template, ROI calculator, stakeholder briefings, FAQ
+
+### Honest gaps (see [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md))
+
+- Live IdP federation (Cognito stack deploys; real SAML/OIDC binding is customer-specific)
+- Live SoR connectors (fixture mode works; production connectors require customer API access)
+- Ephemeral-account CI deploy (template validation passes; full stack deploy in CI is planned)
+- WCAG conformance testing (pre-flight checks shipped; formal testing with screen readers and axe-core is customer responsibility)
+- Penetration testing (not performed — this is a reference accelerator, not a SaaS product)
+
+---
+
+<a id="compliance-disclaimer"></a>
 ## Compliance Disclaimer
 
-This suite is a **decision-support accelerator** for qualified education professionals. It is not a validated student-information system, a certified accessibility product, or an autonomous decision-maker. AI-generated content requires human review and approval by a qualified professional before any consequential action — issuing a grade, making an admissions or financial-aid determination, deciding discipline, determining special-education eligibility, or placing a student. The AI never takes irreversible or consequential actions autonomously.
+This suite is a **decision-support accelerator** for qualified education professionals. It is not a certified student-information system, a compliance product, or an autonomous decision-maker.
 
-Customers are responsible for: their FERPA/COPPA/PPRA compliance posture and data-governance program; IdP integration and role mapping (including guardian-relationship and age-of-majority rules); connector validation against live SIS/LMS/ERP/ITSM systems; Bedrock Guardrail configuration appropriate to their student population (including minors); WCAG 2.2 AA conformance testing of any student-facing surface; state student-privacy-law obligations; and records-retention and change-control procedures for prompt and model updates.
+AI-generated content requires human review and approval by a qualified professional before any consequential action — issuing a grade, making an admissions or financial-aid determination, deciding discipline, determining special-education eligibility, or placing a student.
+
+**Customers are responsible for:**
+- FERPA/COPPA/PPRA compliance posture and data-governance program
+- IdP integration and role mapping (including guardian-relationship and age-of-majority rules)
+- Connector validation against live SIS/LMS/ERP/ITSM systems
+- Bedrock Guardrail configuration appropriate to their student population
+- WCAG 2.2 AA conformance testing of any student-facing surface
+- State student-privacy-law obligations
+- Records-retention and change-control procedures for prompt and model updates
+- Security review and penetration testing
 
 This accelerator provides the control design. The customer operationalizes, validates, and accepts accountability for it.
+
+---
+
+## Get Involved
+
+- **Report a security vulnerability:** See [SECURITY.md](SECURITY.md)
+- **Questions or feedback:** Open an issue on this repository
+- **Detailed docs:** Browse the [`docs/`](docs/) directory
+- **GTM / sales collateral:** See [`gtm/`](gtm/), [`decks/`](decks/), and [`offerings/`](offerings/)
