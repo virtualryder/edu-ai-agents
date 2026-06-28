@@ -39,10 +39,21 @@ def test_runs_end_to_end():
     assert out["audit_trail"], "audit trail must be populated"
 
 
-def test_grounded_demo_answer_routes_to_human_gate():
+def test_grounded_demo_answer_skips_gate_for_read_only():
+    """Clean read-only answers go straight to finalize — no over-gating."""
     graph = build_graph(use_memory=False)
     out = graph.invoke(_seed())
     assert out["recommended_action"] == RecommendedAction.ANSWER
+    assert "human_review_gate" not in out["completed_steps"]
+    assert "finalize" in out["completed_steps"]
+
+
+def test_consequential_action_routes_to_human_gate():
+    """Consequential outbound actions (e.g. send_message) must pass through the gate."""
+    graph = build_graph(use_memory=False)
+    out = graph.invoke(_seed(intent="ACTION",
+                             action_request={"type": "send_message",
+                                             "payload": {"to": "guardian", "topic": "status"}}))
     assert "human_review_gate" in out["completed_steps"]
 
 
@@ -64,9 +75,12 @@ def test_consequential_send_without_approval_stays_pending():
 
 
 def test_memory_graph_interrupts_before_human_gate():
+    """When a consequential action triggers the gate, the memory graph pauses there."""
     graph = build_graph(use_memory=True)
     cfg = {"configurable": {"thread_id": "t-1"}}
-    graph.invoke(_seed(), cfg)
+    graph.invoke(_seed(intent="ACTION",
+                       action_request={"type": "send_message",
+                                       "payload": {"to": "guardian", "topic": "status"}}), cfg)
     snap = graph.get_state(cfg)
     # Execution is paused at the human gate (framework-enforced HITL).
     assert snap.next == (HUMAN_GATE_NODE,), f"expected interrupt before {HUMAN_GATE_NODE}, got {snap.next}"
