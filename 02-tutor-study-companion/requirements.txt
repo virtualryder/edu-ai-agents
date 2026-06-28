@@ -1,5 +1,5 @@
 # Tutor & Study Companion — runtime dependencies
-langgraph>=0.2.0
+langgraph>=1.2.6
 langchain-core>=0.3.0
 streamlit>=1.58.0
 
