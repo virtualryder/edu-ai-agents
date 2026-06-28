@@ -11,4 +11,4 @@ langchain-anthropic>=0.2.0    # LLM_PROVIDER=anthropic (default)
 # edu-agent-platform
 
 # Dev / test
-pytest>=8.0.0
+pytest>=9.1.1
