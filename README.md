@@ -61,7 +61,7 @@ Every agent includes a Streamlit demo app, fixture data, and tests that run with
 ### 3. Run the test suite
 
 ```bash
-make test                         # runs all governance + agent tests (70 platform + governance + agent tests)
+make test                         # runs all governance + agent tests (79 tests across platform, governance, and agents)
 ```
 
 ### 4. Validate CloudFormation templates
@@ -380,6 +380,24 @@ Every agent shares the same six-layer platform. Controls compound: a governance 
 
 This guide walks you through deploying Agent 01 (Student & Family Concierge) into your own AWS account. No prior AWS experience is assumed — every step includes the exact commands to run. For the full copy-pasteable runbook, see [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md).
 
+> **✅ Verified against a live AWS account (June 30, 2026).** Every resource type in this guide was
+> provisioned for real in a clean account (us-east-1), confirmed working, and then deleted. Results:
+>
+> | Control | Provisioned | Verified |
+> |---|---|---|
+> | KMS customer-managed key | ✅ | enabled |
+> | DynamoDB audit table (CMK SSE + deletion protection + PITR) | ✅ | `ACTIVE`, encryption + point-in-time recovery on |
+> | S3 WORM bucket (Object Lock GOVERNANCE + CMK SSE + public-access block) | ✅ | lock + encryption applied |
+> | Cognito user pool with custom EDU claims (`edu_role`, `under_13`, `rights_transferred`) | ✅ | created with all three claims |
+> | Bedrock Guardrail (content + PII) | ✅ | **blocked an SSN input — `GUARDRAIL_INTERVENED`** |
+> | Amazon Bedrock model access | ✅ | Claude Sonnet 4 / 4.5 / 4.6 available |
+>
+> Total cost of the verification run: **under $1**; all resources torn down (one KMS key auto-deletes
+> on its mandatory 7-day window). Full record: [`docs/AWS-DEPLOYMENT-VERIFICATION-RUN.md`](docs/AWS-DEPLOYMENT-VERIFICATION-RUN.md).
+> *Note: this verified the resources provision cleanly; a full end-to-end CloudFormation deploy of the
+> agent stack additionally requires your IdP metadata, Lambda artifacts, and (for the managed path)
+> AgentCore — see the go-live checklist below.*
+
 ### Before You Begin — What You'll Need
 
 | Item | Where to get it | Time |
@@ -594,6 +612,7 @@ Note: Resources with `DeletionPolicy: Retain` (KMS key, audit data) survive dele
 | [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) | **Authoritative** per-agent / per-control capability matrix — the single source of truth for maturity |
 | [`docs/SECOND-REVIEW-ACTION-PLAN.md`](docs/SECOND-REVIEW-ACTION-PLAN.md) | Second-review delta: 10 gaps + 5 priorities mapped to status, files, and verification |
 | [`docs/README.md`](docs/README.md) | Documentation index — every doc grouped by audience |
+| [`docs/AWS-DEPLOYMENT-VERIFICATION-RUN.md`](docs/AWS-DEPLOYMENT-VERIFICATION-RUN.md) | Record of the live-account verification run (what was provisioned, proven, and torn down) |
 
 ---
 

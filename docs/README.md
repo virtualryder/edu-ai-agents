@@ -34,6 +34,7 @@
 | [`../runbooks/agent-deploy/`](../runbooks/agent-deploy/) | Per-agent deploy runbooks (01–08). |
 | [`../runbooks/README.md`](../runbooks/README.md) | Runbook index (deploy + operations: DR, HITL queue, incident, model degradation). |
 | [`AWS-DEPLOYMENT-VALIDATION.md`](AWS-DEPLOYMENT-VALIDATION.md) | What the automated deployability checks cover (templates parse/lint) — and what they do not. |
+| [AWS-DEPLOYMENT-VERIFICATION-RUN.md](AWS-DEPLOYMENT-VERIFICATION-RUN.md) | Live-account verification run — resources provisioned, proven, and torn down |
 | [`AWS-FUNDING-AND-PREREQUISITES.md`](AWS-FUNDING-AND-PREREQUISITES.md) | Account, funding, and prerequisite setup. |
 | [`CREATE-A-NEW-AGENT.md`](CREATE-A-NEW-AGENT.md) | How to scaffold a ninth agent on the shared platform. |
 | [`../infra/lambdas/agentcore_provisioner/README.md`](../infra/lambdas/agentcore_provisioner/README.md) | AgentCore provisioner custom resource. |
