@@ -331,6 +331,10 @@ Monthly run-cost model (pilot vs production): [`offerings/TCO-MODEL.md`](offerin
 
 The student-privacy and accessibility obligations exist *before* the first line of agent code. They are mapped to concrete platform/AWS controls in `governance/controls/control_mappings.py`.
 
+> **Auditors / GRC reviewers:** the [`assurance/`](assurance/README.md) packet is a single
+> curated cover sheet indexing every threat-model, FERPA/COPPA/IDEA/WCAG control-mapping,
+> evidence, and shared-responsibility artifact under standard assurance headings.
+
 | Regime | What it requires | How the platform aligns |
 |---|---|---|
 | **FERPA** | Protect PII in education records; vendor acts under "school official / direct control" | Deny-by-default gateway (agent-grant ∩ user-entitlement), identity-scoped retrieval, student-PII masking, tamper-evident audit trail satisfying FERPA recordkeeping of disclosures |
