@@ -31,7 +31,7 @@ Where the review **overstated**: the IAM role is *not* uniformly broad (audit/se
 | **Close the auth bypass** — `verify_jwt` now rejects a pre-decoded claims dict outside demo mode (production requires a signed JWT / verified authorizer context) | ✅ | Dev | `platform_core/tests/test_auth.py` (4 tests) |
 | **Bind approvals to the transaction** — consequential approvals are now signed, bound to the exact agent/user/tool/args, single-use (one-time nonce), and expiring; unsigned dicts are rejected in production | ✅ | Dev | `platform_core/tests/test_approvals.py` (5 tests: wrong-args, replay, tamper, prod-reject, signed-allow) |
 
-**Verify P0 end-to-end:** `python -m pytest platform_core/tests governance/tests -q --ignore=governance/tests/test_hitl_gates.py` → 46 passing.
+**Verify P0 end-to-end:** `python -m pytest platform_core/tests governance/tests -q --ignore=governance/tests/test_hitl_gates.py` → 67 passing as of 2026-07-07 (46 at the time of the original pass).
 
 ## P1 — Harden the shipped IaC and CI ✅/🔧 (mostly done this pass)
 

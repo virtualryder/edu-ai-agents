@@ -8,6 +8,31 @@
 
 > **Maturity is governed by one authoritative file:** [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) — the per-agent / per-control capability matrix that every status statement in this repo derives from. New here? Start with the [documentation index](docs/README.md).
 
+## Capability maturity matrix
+
+✅ = evidence in this repo (code + passing test, shipped template, or documented artifact) · ◻ = not done here / customer-engagement work.
+Derived from the authoritative [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md). No CloudFormation stack has been stood up in a clean account (the 2026-07-07 live validation exercised direct-API provisioning only, by design), so the deployed-on-AWS column is honestly empty.
+
+| Capability | Designed | Implemented (offline/tested) | Deployed on AWS (validated) | Integration-tested on AWS | Production-ready | Owner (Repo/Customer) |
+|---|:--:|:--:|:--:|:--:|:--:|---|
+| Identity / authN | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (`verify_jwt` hardened + tested; real IdP federation: Customer) |
+| MCP / tool authorization gateway | ✅ | ✅ | ◻ | ◻ | ◻ | Repo |
+| Policy enforcement (deny-by-default) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (incl. fail-closed record-level scope) |
+| Human approval (SoD, single-use) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (signed, transaction-bound, single-use approvals + reviewer service, tested in-process) |
+| PII/PHI masking | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (student-PII masking, fail-closed, unit-tested) |
+| Audit (append-only + WORM) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (mechanism tested in-process; deployed end-to-end audit integration is open — Gap 6) |
+| Bedrock + Guardrails | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (demo-aware factory; no real-model invocation asserted in-repo) |
+| IaC deploy (golden path) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (`make golden-path-01` + 9 templates parse/lint; clean-account stand-up: Customer) |
+| Live connectors | ✅ | ✅ | ◻ | ◻ | ◻ | Customer (fixtures + local live-HTTP stand-in for 01/04/05; real SIS/LMS is engagement work) |
+| CI/CD | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (blocking cfn-lint + bandit/pip-audit/detect-secrets/checkov/SBOM; no cloud deploys in CI) / Customer |
+| Monitoring / alerts | ✅ | ✅ | ◻ | ◻ | ◻ | Customer (`observability.yaml` alarms + dashboard ship as templates, un-deployed-as-tested) |
+| DR / backup | ✅ | ◻ | ◻ | ◻ | ◻ | Customer |
+| Compliance evidence | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (assurance docs + golden-transaction evidence bundle) / Customer (conformance + sign-off) |
+
+Nothing in this repository is production-certified; see [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md) and [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) for the full ownership breakdown (RACI).
+
+> **Validation update (2026-07-07).** The 2026-06-30 resource-level verification was independently re-verified: no `edu-*` stacks in account history (consistent with the direct-API approach — no overclaim), the `eduverify` KMS key auto-deleted on schedule, zero residual resources. Offline suite: 120 tests green. The clean-account `quickstart.yaml` stack deploy remains the documented open gap. Sanitized proof pack: [`evidence/CLEAN-ACCOUNT-ACCEPTANCE.md`](evidence/CLEAN-ACCOUNT-ACCEPTANCE.md).
+
 ---
 
 ## Table of Contents
@@ -61,7 +86,7 @@ Every agent includes a Streamlit demo app, fixture data, and tests that run with
 ### 3. Run the test suite
 
 ```bash
-make test                         # runs all governance + agent tests (79 tests across platform, governance, and agents)
+make test                         # runs all governance + agent tests (120 tests across platform, governance, and agents, as of 2026-07-07; +7 provisioner tests via `make test-provisioner`)
 ```
 
 ### 4. Validate CloudFormation templates
@@ -297,6 +322,8 @@ Every consequential action is gated to a named, authorized human whose identity 
 
 **Hand them:** `offerings/COST-ROI-MODEL.md` and `gtm/roi-calculator/`
 
+Monthly run-cost model (pilot vs production): [`offerings/TCO-MODEL.md`](offerings/TCO-MODEL.md)
+
 ---
 
 <a id="security--regulatory-alignment"></a>
@@ -323,6 +350,14 @@ The student-privacy and accessibility obligations exist *before* the first line 
 ## Platform Architecture
 
 Every agent shares the same six-layer platform. Controls compound: a governance improvement to the PII masker, grounding checker, or audit trail benefits all eight agents simultaneously.
+
+![Student data flow — FERPA/COPPA claims at the identity layer, record-level authorization, educator-gated grading release](docs/diagrams/student-data-flow.png)
+
+The shared Aegis control-plane pattern — how every tool call is authenticated, authorized, human-approved, and audited, including the deny paths:
+
+![Aegis MCP gateway authorization flow — shared control plane](docs/diagrams/mcp-gateway-auth-flow.png)
+
+Editable source: the SVG in [`docs/diagrams/`](docs/diagrams/) (open in draw.io, Inkscape, or any text editor).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -731,3 +766,4 @@ This accelerator provides the control design. The customer operationalizes, vali
 - **Questions or feedback:** Open an issue on this repository
 - **Detailed docs:** Browse the [`docs/`](docs/) directory
 - **GTM / sales collateral:** See [`gtm/`](gtm/), [`decks/`](decks/), and [`offerings/`](offerings/)
+- **Executive overview deck:** The on-brand suite executive overview lives at [`decks/EDU-Agentic-AI-Suite-Executive-Overview.pptx`](decks/EDU-Agentic-AI-Suite-Executive-Overview.pptx) (generated by [`decks/build-agent-decks.js`](decks/build-agent-decks.js)). Older root-level `EDU-Agentic-AI-Suite-Executive-Overview` and `EDU-One-Pager` files were stale/off-brand and have been removed.

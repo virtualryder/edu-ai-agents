@@ -149,7 +149,7 @@ resource "aws_security_group" "vpce" {
   tags = merge(local.base_tags, { Name = "${local.name}-vpce-sg" })
 }
 
-# Bedrock runtime endpoint - in-account inference; PII never egresses the VPC.
+# Bedrock runtime endpoint - private connectivity to the regional Bedrock service via PrivateLink; masked PII reaches Bedrock only over AWS private networking, never the public internet.
 resource "aws_vpc_endpoint" "bedrock_runtime" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.aws_region}.bedrock-runtime"

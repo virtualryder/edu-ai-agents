@@ -22,3 +22,5 @@ _refdeck_tmp/
 *.log
 # Claude Code local settings (may contain tokens)
 .claude/settings.local.json
+.aws-sam/
+_qa*/

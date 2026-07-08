@@ -1,6 +1,7 @@
 # AWS Deployment Verification Run
 
-*Run June 30, 2026 against AWS account `864217980669` (us-east-1), IAM user `dryder`.
+*Run June 30, 2026 against AWS account `<VALIDATION-ACCOUNT-ID>` (us-east-1), IAM user `<VALIDATION-IAM-USER>`.
+(Real account ID and IAM username redacted; evidence available on request.)
 This records a REAL provisioning verification of the suite's signature resources, and an
 honest account of what could and could not be exercised in that environment. All
 resources created here were deleted at the end of the run (see Teardown).*

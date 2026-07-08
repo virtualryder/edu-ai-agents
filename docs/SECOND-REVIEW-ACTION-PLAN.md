@@ -16,7 +16,7 @@ also flagged real gaps between the *mechanisms* we had tested in-process and the
 end-to-end* proof a CISO would demand. We closed the in-code half of several of those this pass; the
 deployed-in-a-customer-account half stays honestly open.
 
-**Closed in code this pass (each with passing tests — 67 tests via**
+**Closed in code this pass (each with passing tests — 74 tests as of 2026-07-07 via**
 `python -m pytest platform_core/tests governance/tests infra/lambdas/agentcore_provisioner -q --ignore=governance/tests/test_hitl_gates.py`**):**
 
 - **Connector token boundary** — the gateway passes its scoped token to the connector and the connector independently validates it (`connectors/base.py` `authorize_call`; `gateway._invoke_connector`). A connector can no longer be called without a valid scoped token. Tested in `platform_core/tests/test_gateway_hardening.py`.
@@ -61,7 +61,7 @@ or delivery team; not done here).
 | # | Priority | Status | File(s) / evidence | Verification |
 |---|---|---|---|---|
 | **P-1** | Make maturity statements consistent and authoritative (the configuration-management fix) | ✅ | New [`docs/STATUS-MANIFEST.md`](STATUS-MANIFEST.md); reconciled `README.md`, `SUITE-STATUS.md`, per-agent `README.md` (01–08), `docs/AWS-DEPLOYMENT-VALIDATION.md`; new [`docs/README.md`](README.md) index | Grep for stale phrases ("not yet runnable", "Documented depth", "foundation and positioning layer") returns only manifest-consistent language; every doc links to the manifest. |
-| **P-2** | Close the real authorization/approval bypasses in code | ✅ | Gaps 2–4, 7 above (`connectors/base.py`, `mcp_gateway/{gateway,policy,approvals,approval_store,metrics}.py`) | The 67-test command passes. |
+| **P-2** | Close the real authorization/approval bypasses in code | ✅ | Gaps 2–4, 7 above (`connectors/base.py`, `mcp_gateway/{gateway,policy,approvals,approval_store,metrics}.py`) | The 74-test command passes (as of 2026-07-07). |
 | **P-3** | Prove ONE golden path end-to-end in a clean account | 🔧 | Agent 01: edge + observability templates, AgentCore provisioner, `make golden-path-01`, golden-path runbook all landed; clean-account deploy outstanding (Gap 1) | `make golden-path-01` green in a fresh account with a live gateway endpoint. |
 | **P-4** | Stand up production identity + the reviewer UI | 🔧 | `auth.py` hardened (rejects unverified claims outside demo); real IdP federation + HITL reviewer app outstanding (Gaps 4, 5) | SAML/OIDC login reaches a role-scoped session; reviewers action the HITL queue through an authenticated app. |
 | **P-5** | Customer assurance package + independent assurance | 🔧 | Landed: `docs/assurance/THREAT-MODEL.md`, `IAM-MATRIX.md`, `PRIVACY-IMPACT-ASSESSMENT-TEMPLATE.md`, `ACCESSIBILITY-CONFORMANCE-PLAN.md`. Outstanding: pen test, full WCAG conformance, per-customer sign-off | Templates present and internally consistent; independent pen test + conformance report are engagement deliverables. |

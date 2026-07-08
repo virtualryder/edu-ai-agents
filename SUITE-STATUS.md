@@ -46,14 +46,14 @@ customer engagement.
   `runb
 ## June 2026 — security & candor hardening pass
 Following an external CISO-style review (validated against the code in `docs/PRODUCTION-READINESS-ACTION-PLAN.md`):
-- **Closed two real bypasses in code:** `verify_jwt` now rejects unverified claims dicts outside demo mode (`platform_core/edu_agent_platform/auth.py`), and consequential approvals are signed, transaction-bound (agent/user/tool/args), single-use, and expiring (`mcp_gateway/approvals.py`) — proven by `test_auth.py` + `test_approvals.py` (46 tests pass total).
+- **Closed two real bypasses in code:** `verify_jwt` now rejects unverified claims dicts outside demo mode (`platform_core/edu_agent_platform/auth.py`), and consequential approvals are signed, transaction-bound (agent/user/tool/args), single-use, and expiring (`mcp_gateway/approvals.py`) — proven by `test_auth.py` + `test_approvals.py` (46 tests passed at the time of this pass; the full `make test` suite is 120 tests green as of 2026-07-07).
 - **Hardened IaC:** Bedrock IAM scoped to model ARNs; MFA/callback/egress/WORM-retention parameterized; audit-immutability defense-in-depth documented.
 - **Hardened CI:** cfn-lint is blocking; added bandit, pip-audit, detect-secrets, checkov, SBOM, and Dependabot.
 - **Corrected messaging** across README + 19 docs (no "compliant with law" / "PII never egresses VPC" / AgentCore-"deployed" overclaims), added a seller disclaimer and root `SECURITY.md`.
 - **Remaining work** (golden path, AgentCore provisioner, record-level authz, Cedar/Verified Permissions, customer assurance package) is staged with verification steps in `docs/PRODUCTION-READINESS-ACTION-PLAN.md`.
 
 ## June 2026 — golden path (Agent 01) scaffolding landed
-The first golden-path build (Agent 01) is in-repo and verified (59 tests pass; 9 CFN templates parse):
+The first golden-path build (Agent 01) is in-repo and verified (59 tests passed at the time of this pass; the full `make test` suite is **120 tests green as of 2026-07-07**; 9 CFN templates parse):
 - **Record-level authorization** (`policy.record_scope_ok` + gateway): a student/guardian reaches only their own/linked record, even on an entitled tool.
 - **Durable single-use approval store** (`mcp_gateway/approval_store.py`): in-memory default + DynamoDB conditional-write impl so a signed approval executes exactly once cluster-wide.
 - **Edge** (`infra/cloudformation/edge.yaml`: CloudFront + WAFv2 + ACM + security headers) and **observability** (`observability.yaml`: alarms + dashboard + SNS).

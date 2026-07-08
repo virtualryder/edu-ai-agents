@@ -26,10 +26,7 @@ Out of scope:
 
 Please report suspected vulnerabilities **privately**. Do not open a public issue, pull request, or discussion for a security report.
 
-Use either channel:
-
-- Open a **private security advisory** on this repository's GitHub ("Security" tab -> "Report a vulnerability"), or
-- Email the maintainers at **security@example.org** *(placeholder — replace with the project's real security contact before distribution)*.
+Report vulnerabilities privately via GitHub Security Advisories: use the *Security* tab -> *Report a vulnerability* on this repository. Please do not open public issues for security reports.
 
 Please include:
 

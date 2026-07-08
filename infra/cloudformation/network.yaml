@@ -5,7 +5,7 @@ Description: >
   validate this against their own network standards before production use.
   Provisions an isolated VPC with public/private subnets across two AZs, a NAT
   gateway for egress, security groups, and a Bedrock VPC interface endpoint so
-  in-account inference never traverses the public internet. No public inbound
+  inference traffic to the regional Bedrock service never traverses the public internet (AWS PrivateLink). No public inbound
   path to the agent runtime exists by design.
 
 # ---------------------------------------------------------------------------
@@ -265,8 +265,8 @@ Resources:
           Value: !Sub "edu-agents-${Environment}-vpce-sg"
 
   # --- VPC endpoints: keep AWS service traffic off the public internet ---
-  # Bedrock runtime endpoint - in-account inference; student PII never egresses
-  # the VPC to a public Bedrock endpoint after masking.
+  # Bedrock runtime endpoint - private connectivity to the regional Bedrock service;
+  # masked student data reaches Bedrock only over AWS PrivateLink, never the public internet.
   BedrockRuntimeEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -335,5 +335,5 @@ Outputs:
     Value: !Ref AgentRuntimeSecurityGroup
 
   BedrockRuntimeEndpointId:
-    Description: Interface VPC endpoint ID for Bedrock runtime (in-account inference).
+    Description: Interface VPC endpoint ID for Bedrock runtime (private connectivity via PrivateLink).
     Value: !Ref BedrockRuntimeEndpoint
