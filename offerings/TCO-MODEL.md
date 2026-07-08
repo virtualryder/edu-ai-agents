@@ -77,3 +77,6 @@ value model — the business case is decided by adoption and the value assumptio
 
 *Related: `offerings/COST-ROI-MODEL.md` (value side), `offerings/PILOT-OFFERING.md`,
 `gtm/roi-calculator/`, per-agent `docs/roi-analysis.md`.*
+
+---
+**Value side:** see [ROI-CASE-STUDY.md](ROI-CASE-STUDY.md) for a fully worked, illustrative ROI example with totals.

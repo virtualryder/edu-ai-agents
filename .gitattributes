@@ -1,0 +1,35 @@
+# Prevent git line-ending conversion (core.autocrlf) from corrupting binary files.
+# .pptx/.docx/.xlsx are ZIP archives — CRLF<->LF rewriting inside them strips media
+# (embedded images) and can make the file unopenable. `binary` = `-text -diff`, so
+# git treats these as opaque bytes and never normalizes them. Do NOT remove.
+
+# Office documents
+*.pptx  binary
+*.ppt   binary
+*.docx  binary
+*.doc   binary
+*.xlsx  binary
+*.xls   binary
+
+# PDFs and raster images
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.bmp   binary
+*.tif   binary
+*.tiff  binary
+
+# Archives, fonts, other binaries
+*.zip   binary
+*.gz    binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.emf   binary
+
+# SVG is text (XML) — keep diffable, but pin LF so it round-trips cleanly.
+*.svg   text eol=lf
