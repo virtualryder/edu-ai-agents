@@ -10,3 +10,5 @@ The artifacts a CISO, privacy officer, accessibility lead, or security review bo
 | [ACCESSIBILITY-CONFORMANCE-PLAN.md](ACCESSIBILITY-CONFORMANCE-PLAN.md) | WCAG 2.x AA / ADA Title II plan for the UI and AI-generated output; preflight vs. conformance, test matrix, VPAT/ACR stub | Accessibility lead / Section 508 |
 
 **Scope note.** These are written against the **Agent 01 golden path + shared platform**. Extend per agent as the suite expands. None of this is legal advice; the institution owns the FERPA/COPPA determinations, the conformance testing, and acceptance of residual risk.
+
+- **Accessibility Conformance Report (VPAT 2.5 draft):** [`VPAT-ACR.md`](VPAT-ACR.md) — the ACR artifact procurement/committees request, alongside the [`ACCESSIBILITY-CONFORMANCE-PLAN.md`](ACCESSIBILITY-CONFORMANCE-PLAN.md).
