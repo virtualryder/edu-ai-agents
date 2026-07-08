@@ -31,6 +31,8 @@ Derived from the authoritative [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.
 
 Nothing in this repository is production-certified; see [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md) and [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) for the full ownership breakdown (RACI).
 
+*Governance once, agents as add-ons: `platform_core` (`edu-agent-platform` 0.1.0) **implements the Aegis Governance Pattern (AGP) v1.0** — the shared governance contract defined in the Aegis platform repo (`docs/14-GOVERNANCE-PATTERN-VERSIONING.md`). Conformance is declared in `platform_core/edu_agent_platform/__init__.py` (`AEGIS_GOVERNANCE_PATTERN_VERSION`) and asserted by `platform_core/tests/test_agp_conformance.py`.*
+
 > **Validation update (2026-07-07).** The 2026-06-30 resource-level verification was independently re-verified: no `edu-*` stacks in account history (consistent with the direct-API approach — no overclaim), the `eduverify` KMS key auto-deleted on schedule, zero residual resources. Offline suite: 120 tests green. The clean-account `quickstart.yaml` stack deploy remains the documented open gap. Sanitized proof pack: [`evidence/CLEAN-ACCOUNT-ACCEPTANCE.md`](evidence/CLEAN-ACCOUNT-ACCEPTANCE.md).
 
 ---

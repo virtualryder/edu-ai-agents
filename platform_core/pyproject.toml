@@ -25,3 +25,9 @@ include = ["edu_agent_platform*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Aegis Governance Pattern conformance — see the Aegis repo
+# docs/14-GOVERNANCE-PATTERN-VERSIONING.md. This package IMPLEMENTS the pattern.
+[tool.aegis]
+role = "implementation"
+governance_pattern = "1.0"
