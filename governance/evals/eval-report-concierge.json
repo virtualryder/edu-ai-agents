@@ -1,0 +1,176 @@
+{
+  "passed": true,
+  "metrics": {
+    "classification_accuracy": 1.0,
+    "entity_f1": 1.0,
+    "grounding_rate": 1.0,
+    "student_pii_leak_rate": 0.0,
+    "answer_completeness": 1.0,
+    "duplicate_accuracy": 1.0
+  },
+  "n_cases": 20,
+  "detail": [
+    {
+      "id": "CS-0001",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0002",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0003",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0004",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0005",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0006",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0007",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0008",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0009",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0010",
+      "intent_gold": "LOOKUP",
+      "intent_pred": "LOOKUP",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0011",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0012",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0013",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0014",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0015",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0016",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0017",
+      "intent_gold": "SEARCH",
+      "intent_pred": "SEARCH",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0018",
+      "intent_gold": "STATUS",
+      "intent_pred": "STATUS",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0019",
+      "intent_gold": "STATUS",
+      "intent_pred": "STATUS",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    },
+    {
+      "id": "CS-0020",
+      "intent_gold": "STATUS",
+      "intent_pred": "STATUS",
+      "classified_ok": true,
+      "grounded": true,
+      "pii_leak": false
+    }
+  ],
+  "duplicate_cases": 3,
+  "failures": []
+}

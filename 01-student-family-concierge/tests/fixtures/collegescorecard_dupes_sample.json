@@ -1,0 +1,25 @@
+{
+  "metadata": {"page": 0, "total": 2, "per_page": 2},
+  "results": [
+    {
+      "id": 236948,
+      "school.name": "University of Washington-Seattle Campus",
+      "school.city": "Seattle",
+      "school.state": "WA",
+      "latest.cost.tuition.in_state": 12973,
+      "latest.cost.tuition.out_of_state": 43209,
+      "latest.aid.median_debt.completers.overall": 14615,
+      "latest.admissions.admission_rate.overall": 0.3915
+    },
+    {
+      "id": 236948,
+      "school.name": "University of Washington - Seattle",
+      "school.city": "Seattle",
+      "school.state": "WA",
+      "latest.cost.tuition.in_state": 12973,
+      "latest.cost.tuition.out_of_state": 43209,
+      "latest.aid.median_debt.completers.overall": 14615,
+      "latest.admissions.admission_rate.overall": 0.3915
+    }
+  ]
+}

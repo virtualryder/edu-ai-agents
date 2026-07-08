@@ -49,6 +49,36 @@ jobs:
       - name: Prompt manifest drift check (model change-control)
         run: python -m governance.prompt_registry
 
+  evals:
+    # Scored output-quality gate for Agent 01 (Student & Family Concierge).
+    # Runs the labeled College Scorecard benchmark against thresholds (classification
+    # accuracy, entity F1, grounding, student-PII leak = 0 HARD GATE, completeness,
+    # duplicate detection). Deterministic, no API key (cassette/golden only). Fails
+    # the build on regression; publishes eval-report-concierge.md as an artifact.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e platform_core
+          pip install pytest
+      - name: Scored eval — Agent 01 concierge (gate on thresholds)
+        run: PYTHONPATH=platform_core:. python -m governance.evals.score_concierge
+      - name: Scored eval tests (gate + negative controls)
+        run: PYTHONPATH=platform_core:. pytest governance/evals -q -p no:cacheprovider
+      - name: Connector tests (cassette-backed, no network)
+        run: PYTHONPATH=platform_core:. pytest 01-student-family-concierge/tests/test_collegescorecard_connector.py -q -p no:cacheprovider
+      - name: Publish eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent01-concierge-eval-report
+          path: governance/evals/eval-report-concierge.md
+          if-no-files-found: warn
+
   compile:
     runs-on: ubuntu-latest
     steps:

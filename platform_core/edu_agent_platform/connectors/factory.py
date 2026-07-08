@@ -34,6 +34,15 @@ def get_connector(kind: str, mode: Optional[str] = None) -> Connector:
     mode = (mode or os.getenv("CONNECTOR_MODE", "fixture")).strip().lower()
 
     if mode == "live":
+        # CONCIERGE_SOURCE=collegescorecard -> real, public, read-only institution
+        # facts from the U.S. Dept of Education College Scorecard API, backing the
+        # concierge's `kb` reads (kb.search_policies). Additive + guarded: it only
+        # engages for kind='kb' in live mode when the switch is explicitly set, so
+        # the fixture default and every other live kind are unchanged. Student-
+        # record writes stay human-gated to the SIS (see collegescorecard.py).
+        if kind == "kb" and os.getenv("CONCIERGE_SOURCE", "").strip().lower() == "collegescorecard":
+            from .collegescorecard import CollegeScorecardConnector
+            return CollegeScorecardConnector()
         base_url = os.getenv(f"{kind.upper()}_BASE_URL", "")
         if base_url:
             return LiveHTTPConnector(kind, base_url=base_url)

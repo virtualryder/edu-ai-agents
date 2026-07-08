@@ -8,7 +8,7 @@ export EXTRACT_MODE ?= demo
 export CONNECTOR_MODE ?= fixture
 
 .PHONY: help install test test-platform test-governance test-agents manifest demo serve clean \
-        test-provisioner golden-path-01
+        test-provisioner golden-path-01 eval-concierge
 
 help:
 	@echo "make install        - install platform_core (editable) + test deps"
@@ -17,6 +17,7 @@ help:
 	@echo "make test-governance- grounding, redteam, fairness, HITL, manifest"
 	@echo "make test-agents     - all 8 agent graph tests"
 	@echo "make manifest       - regenerate the hash-pinned prompt manifest"
+	@echo "make eval-concierge - scored quality benchmark for Agent 01 (College Scorecard connector)"
 	@echo "make demo AGENT=01-student-family-concierge - run an agent's Streamlit demo"
 	@echo "make serve AGENT=01-student-family-concierge - run the AgentCore container server locally"
 	@echo "make test-provisioner - unit-test the AgentCore provisioner Lambda (no AWS)"
@@ -46,6 +47,14 @@ test-agents:
 
 manifest:
 	$(PY) -m governance.prompt_registry --update
+
+# Scored output-quality benchmark for Agent 01 (Student & Family Concierge):
+# runs the real College Scorecard connector mapping + query classifier against the
+# labeled golden set and gates on thresholds (student-PII leak = 0 is a hard gate).
+# Deterministic, no API key. Writes governance/evals/eval-report-concierge.md.
+eval-concierge:
+	$(PY) -m governance.evals.score_concierge
+	$(PY) -m pytest governance/evals 01-student-family-concierge/tests/test_collegescorecard_connector.py -q -p no:cacheprovider
 
 demo:
 	cd $(AGENT) && streamlit run app.py

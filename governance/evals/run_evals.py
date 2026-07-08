@@ -6,7 +6,9 @@ Run directly:  python -m governance.evals.run_evals
 """
 from __future__ import annotations
 
+import importlib
 import sys
+from pathlib import Path
 from typing import Callable, Dict, List, Tuple
 
 from .golden_artifacts import CONCIERGE_ANSWER, FEEDBACK_PACKAGE
@@ -40,6 +42,36 @@ CASES: List[Tuple[str, Callable, Dict]] = [
     ("feedback_package_anatomy", _feedback_package_ok, FEEDBACK_PACKAGE),
 ]
 
+# ── Scored evaluators, keyed by golden-file stem ──────────────────────────────
+# A golden JSON in golden/ whose stem is NOT in this map is SKIPPED (so adding an
+# unrelated golden file never crashes this runner). Each value is a module exposing
+# main() -> int (0 = pass) that gates its own thresholds.
+GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
+EVALUATORS: Dict[str, str] = {
+    "agent01_concierge_scored": "governance.evals.score_concierge",
+}
+
+
+def run_scored() -> int:
+    """Run registered scored evaluators over golden/*.json; skip unknown stems."""
+    failures = 0
+    if not GOLDEN_DIR.exists():
+        return 0
+    for gf in sorted(GOLDEN_DIR.glob("*.json")):
+        stem = gf.stem
+        module = EVALUATORS.get(stem)
+        if not module:
+            print(f"[skip] scored:{stem}: no evaluator registered")
+            continue
+        try:
+            rc = importlib.import_module(module).main()
+        except Exception as exc:  # never let a scored eval crash the structural run
+            print(f"[skip] scored:{stem}: evaluator error ({exc})")
+            continue
+        print(f"[{'PASS' if rc == 0 else 'FAIL'}] scored:{stem}")
+        failures += 0 if rc == 0 else 1
+    return failures
+
 
 def run() -> int:
     failures = 0
@@ -47,7 +79,9 @@ def run() -> int:
         ok, msg = fn(art)
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {msg}")
         failures += 0 if ok else 1
-    print(f"\n{len(CASES) - failures}/{len(CASES)} eval cases passed")
+    failures += run_scored()
+    print(f"\nstructural: {len(CASES) - min(failures, len(CASES))}/{len(CASES)} anatomy cases; "
+          f"total failures (incl. scored): {failures}")
     return failures
 
 

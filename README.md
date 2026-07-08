@@ -35,6 +35,19 @@ Nothing in this repository is production-certified; see [`docs/PRODUCTION-READIN
 
 > **Validation update (2026-07-07).** The 2026-06-30 resource-level verification was independently re-verified: no `edu-*` stacks in account history (consistent with the direct-API approach — no overclaim), the `eduverify` KMS key auto-deleted on schedule, zero residual resources. Offline suite: 120 tests green. The clean-account `quickstart.yaml` stack deploy remains the documented open gap. Sanitized proof pack: [`evidence/CLEAN-ACCOUNT-ACCEPTANCE.md`](evidence/CLEAN-ACCOUNT-ACCEPTANCE.md).
 
+### Hero pilot — Student & Family Concierge (lead, low-blast-radius)
+
+Agent 01 (**Student & Family Concierge**) is the recommended lead pilot: it answers, retrieves, and drafts, but touches no student education record to prove value, so it is the lowest-blast-radius way to stand the governed pattern up against a **real system of record**.
+
+It now ships a **REAL, read-only connector to the public [U.S. Department of Education College Scorecard API](https://collegescorecard.ed.gov/data/documentation/)** — genuine institution / cost / aid / admissions facts a concierge would consult — wired behind the same governance the whole suite uses:
+
+- **Governed.** Every read flows through the deny-by-default MCP gateway with least-privilege intersection (agent grant ∩ user entitlement), a per-call scoped token, and an append-only masked audit. A student cannot send outbound messages; a consequential family message is **human-gated** (`PENDING_APPROVAL`) until a verified approval is bound. Connector writes raise `NotImplementedError` — student-record writes stay human-gated to the SIS.
+- **Student-PII masked (FERPA/COPPA).** The masker runs fail-closed on every ingested summary even though Scorecard carries no PII, so the control is exercised, not assumed.
+- **Offline + live demo.** `SCORECARD_OFFLINE=1 python demo/demo_collegescorecard.py` (cassette, no network) or live against `api.data.gov` with `DEMO_KEY`; cassette-backed tests mean **no network in CI**.
+- **Scored quality benchmark.** `make eval-concierge` runs a labeled 20-case benchmark against thresholds — classification accuracy ≥ 0.90, entity F1 ≥ 0.85, grounding ≥ 0.90, answer completeness ≥ 0.95, duplicate/near-duplicate detection ≥ 0.90, and a **student-PII-leak-rate = 0 hard gate** — gated in CI (`evals` job, deterministic, no API key; uploads `eval-report-concierge.md`).
+
+Honest scope: this is a **reference accelerator**. College Scorecard is *public institution data*, not a student record — real SIS/LMS connectors (PowerSchool, Banner, Canvas, …) that touch the education record are separate, human-gated engagement work with FERPA sign-off. Connector: [`platform_core/edu_agent_platform/connectors/collegescorecard.py`](platform_core/edu_agent_platform/connectors/collegescorecard.py) · switch: `CONNECTOR_MODE=live CONCIERGE_SOURCE=collegescorecard`.
+
 ---
 
 ## Table of Contents

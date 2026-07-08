@@ -1,0 +1,490 @@
+{
+  "cases": [
+    {
+      "id": "CS-0001",
+      "raw": {
+        "id": 110404,
+        "school.name": "Rice University",
+        "school.city": "Houston",
+        "school.state": "TX",
+        "latest.cost.tuition.in_state": 54960,
+        "latest.cost.tuition.out_of_state": 54960,
+        "latest.aid.median_debt.completers.overall": 15000,
+        "latest.admissions.admission_rate.overall": 0.0868
+      },
+      "query": "How much is tuition at Rice University?",
+      "gold": {
+        "institution": "Rice University",
+        "city": "Houston",
+        "state": "TX",
+        "tuition_in_state": 54960,
+        "tuition_out_of_state": 54960,
+        "median_debt": 15000,
+        "admission_rate": 0.0868,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0002",
+      "raw": {
+        "id": 198419,
+        "school.name": "Duke University",
+        "school.city": "Durham",
+        "school.state": "NC",
+        "latest.cost.tuition.in_state": 63450,
+        "latest.cost.tuition.out_of_state": 63450,
+        "latest.aid.median_debt.completers.overall": 20500,
+        "latest.admissions.admission_rate.overall": 0.0635
+      },
+      "query": "What is the cost to attend Duke University?",
+      "gold": {
+        "institution": "Duke University",
+        "city": "Durham",
+        "state": "NC",
+        "tuition_in_state": 63450,
+        "tuition_out_of_state": 63450,
+        "median_debt": 20500,
+        "admission_rate": 0.0635,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0003",
+      "raw": {
+        "id": 243744,
+        "school.name": "Stanford University",
+        "school.city": "Stanford",
+        "school.state": "CA",
+        "latest.cost.tuition.in_state": 56169,
+        "latest.cost.tuition.out_of_state": 56169,
+        "latest.aid.median_debt.completers.overall": 13000,
+        "latest.admissions.admission_rate.overall": 0.0368
+      },
+      "query": "How much does Stanford University cost?",
+      "gold": {
+        "institution": "Stanford University",
+        "city": "Stanford",
+        "state": "CA",
+        "tuition_in_state": 56169,
+        "tuition_out_of_state": 56169,
+        "median_debt": 13000,
+        "admission_rate": 0.0368,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0004",
+      "raw": {
+        "id": 166027,
+        "school.name": "Harvard University",
+        "school.city": "Cambridge",
+        "school.state": "MA",
+        "latest.cost.tuition.in_state": 55587,
+        "latest.cost.tuition.out_of_state": 55587,
+        "latest.aid.median_debt.completers.overall": 12665,
+        "latest.admissions.admission_rate.overall": 0.0324
+      },
+      "query": "What is the median debt at Harvard University?",
+      "gold": {
+        "institution": "Harvard University",
+        "city": "Cambridge",
+        "state": "MA",
+        "tuition_in_state": 55587,
+        "tuition_out_of_state": 55587,
+        "median_debt": 12665,
+        "admission_rate": 0.0324,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0005",
+      "raw": {
+        "id": 130794,
+        "school.name": "Yale University",
+        "school.city": "New Haven",
+        "school.state": "CT",
+        "latest.cost.tuition.in_state": 62250,
+        "latest.cost.tuition.out_of_state": 62250,
+        "latest.aid.median_debt.completers.overall": 13625,
+        "latest.admissions.admission_rate.overall": 0.0457
+      },
+      "query": "What is the admission rate at Yale University?",
+      "gold": {
+        "institution": "Yale University",
+        "city": "New Haven",
+        "state": "CT",
+        "tuition_in_state": 62250,
+        "tuition_out_of_state": 62250,
+        "median_debt": 13625,
+        "admission_rate": 0.0457,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0006",
+      "raw": {
+        "id": 221999,
+        "school.name": "Vanderbilt University",
+        "school.city": "Nashville",
+        "school.state": "TN",
+        "latest.cost.tuition.in_state": 60348,
+        "latest.cost.tuition.out_of_state": 60348,
+        "latest.aid.median_debt.completers.overall": 18000,
+        "latest.admissions.admission_rate.overall": 0.0667
+      },
+      "query": "How much is tuition at Vanderbilt University?",
+      "gold": {
+        "institution": "Vanderbilt University",
+        "city": "Nashville",
+        "state": "TN",
+        "tuition_in_state": 60348,
+        "tuition_out_of_state": 60348,
+        "median_debt": 18000,
+        "admission_rate": 0.0667,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0007",
+      "raw": {
+        "id": 139658,
+        "school.name": "Emory University",
+        "school.city": "Atlanta",
+        "school.state": "GA",
+        "latest.cost.tuition.in_state": 57120,
+        "latest.cost.tuition.out_of_state": 57120,
+        "latest.aid.median_debt.completers.overall": 17250,
+        "latest.admissions.admission_rate.overall": 0.109
+      },
+      "query": "What does Emory University cost?",
+      "gold": {
+        "institution": "Emory University",
+        "city": "Atlanta",
+        "state": "GA",
+        "tuition_in_state": 57120,
+        "tuition_out_of_state": 57120,
+        "median_debt": 17250,
+        "admission_rate": 0.109,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0008",
+      "raw": {
+        "id": 131496,
+        "school.name": "Georgetown University",
+        "school.city": "Washington",
+        "school.state": "DC",
+        "latest.cost.tuition.in_state": 62052,
+        "latest.cost.tuition.out_of_state": 62052,
+        "latest.aid.median_debt.completers.overall": 21500,
+        "latest.admissions.admission_rate.overall": 0.12
+      },
+      "query": "What is tuition at Georgetown University?",
+      "gold": {
+        "institution": "Georgetown University",
+        "city": "Washington",
+        "state": "DC",
+        "tuition_in_state": 62052,
+        "tuition_out_of_state": 62052,
+        "median_debt": 21500,
+        "admission_rate": 0.12,
+        "intent": "LOOKUP"
+      }
+    },
+    {
+      "id": "CS-0009",
+      "raw": {
+        "id": 178615,
+        "school.name": "Lincoln University",
+        "school.city": "Jefferson City",
+        "school.state": "MO",
+        "latest.cost.tuition.in_state": 8038,
+        "latest.cost.tuition.out_of_state": 15046,
+        "latest.aid.median_debt.completers.overall": 24000,
+        "latest.admissions.admission_rate.overall": 0.9962
+      },
+      "query": "What is the admission rate at Lincoln University?",
+      "gold": {
+        "institution": "Lincoln University",
+        "city": "Jefferson City",
+        "state": "MO",
+        "tuition_in_state": 8038,
+        "tuition_out_of_state": 15046,
+        "median_debt": 24000,
+        "admission_rate": 0.9962,
+        "intent": "LOOKUP",
+        "is_duplicate": false,
+        "dup_of": "CS-0010"
+      }
+    },
+    {
+      "id": "CS-0010",
+      "raw": {
+        "id": 216542,
+        "school.name": "Lincoln University",
+        "school.city": "Lincoln University",
+        "school.state": "PA",
+        "latest.cost.tuition.in_state": 11279,
+        "latest.cost.tuition.out_of_state": 16481,
+        "latest.aid.median_debt.completers.overall": 27500,
+        "latest.admissions.admission_rate.overall": 0.74
+      },
+      "query": "Is Lincoln University affordable?",
+      "gold": {
+        "institution": "Lincoln University",
+        "city": "Lincoln University",
+        "state": "PA",
+        "tuition_in_state": 11279,
+        "tuition_out_of_state": 16481,
+        "median_debt": 27500,
+        "admission_rate": 0.74,
+        "intent": "LOOKUP",
+        "is_duplicate": false,
+        "dup_of": "CS-0009"
+      }
+    },
+    {
+      "id": "CS-0011",
+      "raw": {
+        "id": 236948,
+        "school.name": "University of Washington-Seattle Campus",
+        "school.city": "Seattle",
+        "school.state": "WA",
+        "latest.cost.tuition.in_state": 12973,
+        "latest.cost.tuition.out_of_state": 43209,
+        "latest.aid.median_debt.completers.overall": 14615,
+        "latest.admissions.admission_rate.overall": 0.3915
+      },
+      "query": "Tell me about the University of Washington",
+      "gold": {
+        "institution": "University of Washington-Seattle Campus",
+        "city": "Seattle",
+        "state": "WA",
+        "tuition_in_state": 12973,
+        "tuition_out_of_state": 43209,
+        "median_debt": 14615,
+        "admission_rate": 0.3915,
+        "intent": "SEARCH"
+      }
+    },
+    {
+      "id": "CS-0012",
+      "raw": {
+        "id": 236948,
+        "school.name": "University of Washington - Seattle",
+        "school.city": "Seattle",
+        "school.state": "WA",
+        "latest.cost.tuition.in_state": 12973,
+        "latest.cost.tuition.out_of_state": 43209,
+        "latest.aid.median_debt.completers.overall": 14615,
+        "latest.admissions.admission_rate.overall": 0.3915
+      },
+      "query": "University of Washington-Seattle Campus details",
+      "gold": {
+        "institution": "University of Washington - Seattle",
+        "city": "Seattle",
+        "state": "WA",
+        "tuition_in_state": 12973,
+        "tuition_out_of_state": 43209,
+        "median_debt": 14615,
+        "admission_rate": 0.3915,
+        "intent": "SEARCH",
+        "is_duplicate": true,
+        "dup_of": "CS-0011"
+      }
+    },
+    {
+      "id": "CS-0013",
+      "raw": {
+        "id": 112862,
+        "school.name": "De Anza College",
+        "school.city": "Cupertino",
+        "school.state": "CA",
+        "latest.cost.tuition.in_state": 1454,
+        "latest.cost.tuition.out_of_state": 8722,
+        "latest.aid.median_debt.completers.overall": 9500,
+        "latest.admissions.admission_rate.overall": 1.0
+      },
+      "query": "community colleges in California",
+      "gold": {
+        "institution": "De Anza College",
+        "city": "Cupertino",
+        "state": "CA",
+        "tuition_in_state": 1454,
+        "tuition_out_of_state": 8722,
+        "median_debt": 9500,
+        "admission_rate": 1.0,
+        "intent": "SEARCH"
+      }
+    },
+    {
+      "id": "CS-0014",
+      "raw": {
+        "id": 224545,
+        "school.name": "Austin Community College District",
+        "school.city": "Austin",
+        "school.state": "TX",
+        "latest.cost.tuition.in_state": 3630,
+        "latest.cost.tuition.out_of_state": 12630,
+        "latest.aid.median_debt.completers.overall": 11000,
+        "latest.admissions.admission_rate.overall": 1.0
+      },
+      "query": "compare community colleges in Texas",
+      "gold": {
+        "institution": "Austin Community College District",
+        "city": "Austin",
+        "state": "TX",
+        "tuition_in_state": 3630,
+        "tuition_out_of_state": 12630,
+        "median_debt": 11000,
+        "admission_rate": 1.0,
+        "intent": "SEARCH"
+      }
+    },
+    {
+      "id": "CS-0015",
+      "raw": {
+        "id": 135717,
+        "school.name": "Miami Dade College",
+        "school.city": "Miami",
+        "school.state": "FL",
+        "latest.cost.tuition.in_state": 2838,
+        "latest.cost.tuition.out_of_state": 9661,
+        "latest.aid.median_debt.completers.overall": 8500,
+        "latest.admissions.admission_rate.overall": 1.0
+      },
+      "query": "list affordable colleges in Florida",
+      "gold": {
+        "institution": "Miami Dade College",
+        "city": "Miami",
+        "state": "FL",
+        "tuition_in_state": 2838,
+        "tuition_out_of_state": 9661,
+        "median_debt": 8500,
+        "admission_rate": 1.0,
+        "intent": "SEARCH"
+      }
+    },
+    {
+      "id": "CS-0016",
+      "raw": {
+        "id": 209533,
+        "school.name": "Portland Community College",
+        "school.city": "Portland",
+        "school.state": "OR",
+        "latest.cost.tuition.in_state": 4590,
+        "latest.cost.tuition.out_of_state": 10800,
+        "latest.aid.median_debt.completers.overall": 10250,
+        "latest.admissions.admission_rate.overall": 1.0
+      },
+      "query": "cheapest schools in Oregon",
+      "gold": {
+        "institution": "Portland Community College",
+        "city": "Portland",
+        "state": "OR",
+        "tuition_in_state": 4590,
+        "tuition_out_of_state": 10800,
+        "median_debt": 10250,
+        "admission_rate": 1.0,
+        "intent": "SEARCH"
+      }
+    },
+    {
+      "id": "CS-0017",
+      "raw": {
+        "id": 139940,
+        "school.name": "Georgia State University",
+        "school.city": "Atlanta",
+        "school.state": "GA",
+        "latest.cost.tuition.in_state": 9112,
+        "latest.cost.tuition.out_of_state": 24855,
+        "latest.aid.median_debt.completers.overall": 22000,
+        "latest.admissions.admission_rate.overall": 0.76
+      },
+      "query": "which universities are in Georgia?",
+      "gold": {
+        "institution": "Georgia State University",
+        "city": "Atlanta",
+        "state": "GA",
+        "tuition_in_state": 9112,
+        "tuition_out_of_state": 24855,
+        "median_debt": 22000,
+        "admission_rate": 0.76,
+        "intent": "SEARCH"
+      }
+    },
+    {
+      "id": "CS-0018",
+      "raw": {
+        "id": 204796,
+        "school.name": "Ohio State University-Main Campus",
+        "school.city": "Columbus",
+        "school.state": "OH",
+        "latest.cost.tuition.in_state": 11936,
+        "latest.cost.tuition.out_of_state": 35019,
+        "latest.aid.median_debt.completers.overall": 24000,
+        "latest.admissions.admission_rate.overall": 0.57
+      },
+      "query": "What is my application status?",
+      "gold": {
+        "institution": "Ohio State University-Main Campus",
+        "city": "Columbus",
+        "state": "OH",
+        "tuition_in_state": 11936,
+        "tuition_out_of_state": 35019,
+        "median_debt": 24000,
+        "admission_rate": 0.57,
+        "intent": "STATUS"
+      }
+    },
+    {
+      "id": "CS-0019",
+      "raw": {
+        "id": 134130,
+        "school.name": "University of Florida",
+        "school.city": "Gainesville",
+        "school.state": "FL",
+        "latest.cost.tuition.in_state": 6381,
+        "latest.cost.tuition.out_of_state": 28658,
+        "latest.aid.median_debt.completers.overall": 18000,
+        "latest.admissions.admission_rate.overall": 0.23
+      },
+      "query": "Did you receive my transcript?",
+      "gold": {
+        "institution": "University of Florida",
+        "city": "Gainesville",
+        "state": "FL",
+        "tuition_in_state": 6381,
+        "tuition_out_of_state": 28658,
+        "median_debt": 18000,
+        "admission_rate": 0.23,
+        "intent": "STATUS"
+      }
+    },
+    {
+      "id": "CS-0020",
+      "raw": {
+        "id": 104151,
+        "school.name": "Arizona State University Campus Immersion",
+        "school.city": "Tempe",
+        "school.state": "AZ",
+        "latest.cost.tuition.in_state": 11348,
+        "latest.cost.tuition.out_of_state": 29438,
+        "latest.aid.median_debt.completers.overall": 21000,
+        "latest.admissions.admission_rate.overall": 0.88
+      },
+      "query": "What's my aid status?",
+      "gold": {
+        "institution": "Arizona State University Campus Immersion",
+        "city": "Tempe",
+        "state": "AZ",
+        "tuition_in_state": 11348,
+        "tuition_out_of_state": 29438,
+        "median_debt": 21000,
+        "admission_rate": 0.88,
+        "intent": "STATUS"
+      }
+    }
+  ]
+}
