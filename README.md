@@ -413,6 +413,10 @@ Editable source: the SVG in [`docs/diagrams/`](docs/diagrams/) (open in draw.io,
 <a id="deploy-to-aws--step-by-step"></a>
 ## Deploy to AWS — Step by Step
 
+### Canonical deployment path
+
+**The intended canonical deploy path is the single-stack quickstart — [`infra/cloudformation/quickstart.yaml`](infra/cloudformation/quickstart.yaml) — but it has not yet completed a clean-account end-to-end deploy** (the documented open gap; the 2026 live validation exercised direct-API resource provisioning, not a stack stand-up). Until that gap closes, the **best-tested route is the Agent 01 golden-path runbook** — [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md) (`make golden-path-01`); [`infra/terraform/`](infra/terraform/) is a parity reference. What has and has not been proven live is recorded in [`evidence/CLEAN-ACCOUNT-ACCEPTANCE.md`](evidence/CLEAN-ACCOUNT-ACCEPTANCE.md).
+
 This guide walks you through deploying Agent 01 (Student & Family Concierge) into your own AWS account. No prior AWS experience is assumed — every step includes the exact commands to run. For the full copy-pasteable runbook, see [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md).
 
 > **✅ Verified against a live AWS account (June 30, 2026).** Every resource type in this guide was
