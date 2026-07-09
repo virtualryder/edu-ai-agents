@@ -1,5 +1,7 @@
 # EDU AI Agent Suite
 
+> ⚠️ **Before you cite anything here:** read [**What we will *not* claim**](NOT-CLAIMS.md) — this is an independent reference accelerator that runs on AWS. It is **not** an AWS service, **not** AWS-supported, **not** an official AWS solution, and **not** a compliance certification. That page governs if any wording elsewhere reads stronger.
+
 ### Governed AI Agents for Education — Built on Amazon Bedrock
 
 > **Independent, open-source reference accelerator** for K–12 districts, community colleges, universities, online programs, and workforce-education providers. Eight AI agents that retrieve, analyze, draft, and recommend — while humans keep every consequential decision. Built on Amazon Bedrock with deny-by-default authorization, student-PII masking, human-in-the-loop enforcement, and a tamper-evident audit trail aligned to FERPA, COPPA, IDEA/504, ADA Title II, and state student-privacy law.
