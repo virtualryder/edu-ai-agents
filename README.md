@@ -4,6 +4,8 @@
 
 > 📊 **Honest status, one source of truth:** per-agent maturity, clean-account evidence, connector tiers, and the test count live in machine-readable [`MATURITY.yaml`](MATURITY.yaml); the four connector-maturity terms are defined in [`docs/CONNECTOR-MATURITY.md`](docs/CONNECTOR-MATURITY.md). Prose defers to `MATURITY.yaml`; a portfolio drift-checker (`tools/check_maturity.py`) keeps them aligned.
 
+> 🔗 **Conforms to the Aegis Governance Pattern (AGP) v1.0.** The 8 required controls (identity, deny-by-default gateway, least-privilege intersection, bound SoD approval, fail-closed masking, append-only+WORM audit, token budgets, model gateway+grounding) are mapped to their implementing module and proving test in [`AGP-CONFORMANCE.md`](AGP-CONFORMANCE.md).
+
 ### Governed AI Agents for Education — Built on Amazon Bedrock
 
 > **Independent, open-source reference accelerator** for K–12 districts, community colleges, universities, online programs, and workforce-education providers. Eight AI agents that retrieve, analyze, draft, and recommend — while humans keep every consequential decision. Built on Amazon Bedrock with deny-by-default authorization, student-PII masking, human-in-the-loop enforcement, and a tamper-evident audit trail aligned to FERPA, COPPA, IDEA/504, ADA Title II, and state student-privacy law.
