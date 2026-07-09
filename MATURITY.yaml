@@ -1,0 +1,52 @@
+# MATURITY.yaml — machine-readable single source of truth for this repo's maturity claims.
+# Prose should agree with this file; THIS FILE governs on drift. Test count via `pytest`.
+# Taxonomy: docs/CONNECTOR-MATURITY.md · Boundaries: NOT-CLAIMS.md
+schema_version: 1
+repo: edu-ai-agents
+display_name: EDU AI Agents (K-12 & Higher Education)
+governance_pattern: "Aegis Governance Pattern (AGP) v1.0"
+positioning: reference-accelerator
+updated: 2026-07-09
+
+tests:
+  offline_total: 166                          # + 1 skipped (2026-07-09, root pytest)
+  reproduce: "PYTHONPATH=platform_core:. pytest -q"
+  last_verified: 2026-07-09
+
+clean_account_deploy:
+  status: not-yet                             # IMPORTANT: do NOT pitch EDU as deploy-validated
+  detail: "Resource-level provisioning was validated (no residual resources; eduverify KMS key auto-deleted),
+           but NO clean-account CloudFormation stack has been stood up end-to-end yet. This is the
+           documented open gap. The quickstart.yaml clean-account deploy remains to be run."
+  evidence: evidence/CLEAN-ACCOUNT-ACCEPTANCE.md
+
+hero_agent: 01-student-family-concierge
+maturity_scale: [documented, demonstrated, deployable, deploy-validated, production-ready]
+
+agents:
+  - id: 01-student-family-concierge
+    name: Student & Family Concierge
+    hero: true
+    maturity: demonstrated                    # NOT deploy-validated until clean-account CFN is run
+    clean_account_evidence: false
+    scored_eval: true                         # governance/evals/score_concierge
+    connectors:
+      - {kind: kb, source: "College Scorecard (public institution data)", tier: 3-live-reference, access: read-only, note: "public data, NOT a student record"}
+      - {kind: sis_lms, source: "PowerSchool / Banner / Canvas (education record)", tier: 4-not-done, note: "under FERPA sign-off"}
+  - {id: 02-tutor-study-companion, name: Tutor / Study Companion, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+  - {id: 03-educator-copilot, name: Educator Copilot, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+  - {id: 04-assessment-grading-feedback, name: Assessment & Grading Feedback, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+  - {id: 05-student-success-engagement, name: Student Success & Engagement, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+  - {id: 06-pathway-navigator, name: Pathway Navigator, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+  - {id: 07-document-accessibility-services, name: Document Accessibility Services, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+  - {id: 08-operations-service-desk, name: Operations Service Desk, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
+
+pitch_guidance: "Use for workshops/envisioning; do NOT present as deploy-validated until a clean-account CFN deploy is completed and evidenced."
+
+references:
+  readme: README.md
+  suite_status: SUITE-STATUS.md
+  status_manifest: docs/STATUS-MANIFEST.md
+  connector_taxonomy: docs/CONNECTOR-MATURITY.md
+  not_claims: NOT-CLAIMS.md
+  clean_account_evidence: evidence/CLEAN-ACCOUNT-ACCEPTANCE.md
