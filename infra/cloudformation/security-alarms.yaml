@@ -1,0 +1,318 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# =========================================================================
+# EDU AI Agents (Education)
+# SECURITY alarms + dashboard - the SECURITY complement to the operational
+# observability stack. REFERENCE / ACCELERATOR: tune every threshold, wire real
+# pager routing on the SNS topic, and confirm the metric names match what the app
+# emits before relying on these in production.
+#
+# CUSTOM SECURITY METRICS THE APPLICATION MUST EMIT (put_metric_data)
+#   Namespace: the MetricNamespace parameter (default "EduAgentSuiteSecurity").
+#   Emit each with Dimension Environment=<env> (Unit: Count). The gateway already
+#   emits several (mcp_gateway/metrics.py); wire the rest at the same points
+#   (JWT authorizer, input guard, egress control, budgeter):
+#
+#     ToolAuthorizationDenied  - every gateway DENY decision
+#     JwtVerificationFailure   - inbound JWT rejected (bad/none/expired/no-sub)
+#     SelfApprovalRejected     - approver == requester on an SoD commit
+#     ApprovalReplayRejected   - single-use approval nonce reused
+#     PromptInjectionBlocked   - input guard flagged/blocked an injection attempt
+#     PiiMaskingFailure        - masking raised/failed before prompt or audit (0)
+#     GuardrailIntervention    - Bedrock Guardrail intervened on an invoke
+#     AuditWriteFailure        - append-only audit PutItem failed (0)
+#     UnexpectedEgressBlocked  - outbound flow off the egress allow-list blocked
+#     TokenBudgetExceeded      - per-session/agent token budget exceeded
+# =========================================================================
+Description: >
+  EDU AI Agents (Education) - SECURITY alarms + dashboard (CloudWatch + SNS). Reference/accelerator
+  template that watches ten governance/security signals: denied tools, bad JWTs,
+  self-approval, approval replay, prompt injection, PII/PHI masking failure, Bedrock
+  Guardrail interventions, audit-write failure, unexpected (off-allow-list) egress,
+  and token-budget breach. Tune thresholds and wire pager routing before production.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, stage, prod]
+    Description: Deployment environment; drives naming, the metric Dimension, and tagging.
+
+  MetricNamespace:
+    Type: String
+    Default: EduAgentSuiteSecurity
+    Description: CloudWatch namespace the application publishes the security metrics under.
+
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: Optional email subscribed to the SNS alarm topic. Leave blank to wire routing later.
+
+  KmsKeyArn:
+    Type: String
+    Default: ""
+    Description: >
+      Optional CMK ARN to encrypt the SNS topic. Blank uses SNS-managed encryption.
+      The key policy must allow cloudwatch.amazonaws.com kms:GenerateDataKey*/kms:Decrypt.
+
+Conditions:
+  HasEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  HasKms:   !Not [!Equals [!Ref KmsKeyArn, ""]]
+
+Resources:
+  SecurityAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-security-alarms-${Environment}"
+      KmsMasterKeyId: !If [HasKms, !Ref KmsKeyArn, "alias/aws/sns"]
+
+  SecurityAlarmEmailSub:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+      TopicArn: !Ref SecurityAlarmTopic
+
+  ToolAuthDeniedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-ToolAuthorizationDenied-${Environment}"
+      AlarmDescription: >
+        Gateway DENY decisions (deny-by-default / least-privilege intersection refusals). A nonzero baseline is normal; a SPIKE indicates probing or a misconfigured grant.
+      Namespace: !Ref MetricNamespace
+      MetricName: ToolAuthorizationDenied
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  JwtVerifyFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-JwtVerificationFailure-${Environment}"
+      AlarmDescription: >
+        Inbound JWT could not be verified (bad signature, alg=none, expired, missing sub). A spike indicates credential-stuffing or a broken IdP trust.
+      Namespace: !Ref MetricNamespace
+      MetricName: JwtVerificationFailure
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  SelfApprovalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-SelfApprovalRejected-${Environment}"
+      AlarmDescription: >
+        A human-approval attempt where approver == requester on a separation-of-duties commit was refused. Should be rare/zero; any occurrence is a control-probe worth review.
+      Namespace: !Ref MetricNamespace
+      MetricName: SelfApprovalRejected
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  ApprovalReplayAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-ApprovalReplayRejected-${Environment}"
+      AlarmDescription: >
+        A single-use approval nonce was presented more than once (replay). Must be ~zero; investigate every occurrence.
+      Namespace: !Ref MetricNamespace
+      MetricName: ApprovalReplayRejected
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  PromptInjectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-PromptInjectionBlocked-${Environment}"
+      AlarmDescription: >
+        The input guard flagged/blocked a suspected prompt-injection or tool-coercion attempt. Track trend; a spike indicates an active attempt.
+      Namespace: !Ref MetricNamespace
+      MetricName: PromptInjectionBlocked
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  PiiMaskingFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-PiiMaskingFailure-${Environment}"
+      AlarmDescription: >
+        PII/PHI/CJI masking raised or failed BEFORE a prompt or audit write. MUST be zero (fail-closed) - page immediately.
+      Namespace: !Ref MetricNamespace
+      MetricName: PiiMaskingFailure
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  GuardrailIntervenAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-GuardrailIntervention-${Environment}"
+      AlarmDescription: >
+        A Bedrock Guardrail intervened on a model invocation (blocked content / denied topic / PII filter). Expected occasionally; a spike is a content/abuse signal. (AWS also emits native AWS/Bedrock guardrail metrics.)
+      Namespace: !Ref MetricNamespace
+      MetricName: GuardrailIntervention
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  AuditWriteFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-AuditWriteFailure-${Environment}"
+      AlarmDescription: >
+        An append-only audit PutItem failed - the immutable trail must never silently drop a record. MUST be zero (fail-closed) - page immediately.
+      Namespace: !Ref MetricNamespace
+      MetricName: AuditWriteFailure
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  UnexpectedEgressAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-UnexpectedEgressBlocked-${Environment}"
+      AlarmDescription: >
+        An outbound flow to a destination NOT on the egress allow-list was blocked (locked-egress control / Network Firewall). Any occurrence means an agent tried to reach something it should not.
+      Namespace: !Ref MetricNamespace
+      MetricName: UnexpectedEgressBlocked
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  TokenBudgetBreachAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-TokenBudgetExceeded-${Environment}"
+      AlarmDescription: >
+        A per-session/per-agent token budget was exceeded (cost + runaway-loop guard). Investigate for loops or abuse.
+      Namespace: !Ref MetricNamespace
+      MetricName: TokenBudgetExceeded
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref SecurityAlarmTopic
+      OKActions:
+        - !Ref SecurityAlarmTopic
+
+  SecurityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-security-${Environment}"
+      DashboardBody: !Sub '{"widgets":[{{"type":"metric","x":0,"y":0,"width":8,"height":6,"properties":{{"title":"ToolAuthorizationDenied","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","ToolAuthorizationDenied","Environment","${Environment}"]]}}}},{{"type":"metric","x":8,"y":0,"width":8,"height":6,"properties":{{"title":"JwtVerificationFailure","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","JwtVerificationFailure","Environment","${Environment}"]]}}}},{{"type":"metric","x":16,"y":0,"width":8,"height":6,"properties":{{"title":"SelfApprovalRejected","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","SelfApprovalRejected","Environment","${Environment}"]]}}}},{{"type":"metric","x":0,"y":6,"width":8,"height":6,"properties":{{"title":"ApprovalReplayRejected","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","ApprovalReplayRejected","Environment","${Environment}"]]}}}},{{"type":"metric","x":8,"y":6,"width":8,"height":6,"properties":{{"title":"PromptInjectionBlocked","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","PromptInjectionBlocked","Environment","${Environment}"]]}}}},{{"type":"metric","x":16,"y":6,"width":8,"height":6,"properties":{{"title":"PiiMaskingFailure","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","PiiMaskingFailure","Environment","${Environment}"]]}}}},{{"type":"metric","x":0,"y":12,"width":8,"height":6,"properties":{{"title":"GuardrailIntervention","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","GuardrailIntervention","Environment","${Environment}"]]}}}},{{"type":"metric","x":8,"y":12,"width":8,"height":6,"properties":{{"title":"AuditWriteFailure","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","AuditWriteFailure","Environment","${Environment}"]]}}}},{{"type":"metric","x":16,"y":12,"width":8,"height":6,"properties":{{"title":"UnexpectedEgressBlocked","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","UnexpectedEgressBlocked","Environment","${Environment}"]]}}}},{{"type":"metric","x":0,"y":18,"width":8,"height":6,"properties":{{"title":"TokenBudgetExceeded","region":"${AWS::Region}","stat":"Sum","period":300,"metrics":[["${MetricNamespace}","TokenBudgetExceeded","Environment","${Environment}"]]}}}}]}'
+
+Outputs:
+  SecurityAlarmTopicArn:
+    Description: SNS topic that all security alarms publish to (wire your pager here).
+    Value: !Ref SecurityAlarmTopic
+  DashboardName:
+    Description: CloudWatch dashboard summarizing the ten security signals.
+    Value: !Sub "${AWS::StackName}-security-${Environment}"

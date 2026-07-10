@@ -23,7 +23,7 @@
               "Sid": "root",
               "Effect": "Allow",
               "Principal": {
-                "AWS": "arn:aws:iam::864217980669:root"
+                "AWS": "arn:aws:iam::111122223333:root"
               },
               "Action": "kms:*",
               "Resource": "*"
@@ -109,7 +109,7 @@
                   ],
                   "Resource": [
                     "arn:aws:bedrock:*::foundation-model/*",
-                    "arn:aws:bedrock:*:864217980669:inference-profile/*"
+                    "arn:aws:bedrock:*:111122223333:inference-profile/*"
                   ]
                 },
                 {
@@ -117,7 +117,7 @@
                   "Action": [
                     "bedrock:ApplyGuardrail"
                   ],
-                  "Resource": "arn:aws:bedrock:*:864217980669:guardrail/*"
+                  "Resource": "arn:aws:bedrock:*:111122223333:guardrail/*"
                 },
                 {
                   "Effect": "Allow",

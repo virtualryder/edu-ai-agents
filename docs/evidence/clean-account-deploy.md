@@ -1,6 +1,6 @@
 # Clean-Account CloudFormation Deploy — Evidence
 
-*Run July 10, 2026 · AWS account `864217980669` · us-east-1 · IAM user `dryder`.
+*Run July 10, 2026 · AWS account `111122223333` · us-east-1 · IAM user `<redacted>`.
 A real CloudFormation stack was deployed, its Lambda invoked, and evidence captured
 from the deployed DynamoDB audit table and CloudWatch Logs. All resources were then
 deleted (see Teardown in `AWS-DEPLOYMENT-VERIFICATION-RUN.md`). This closes second-review

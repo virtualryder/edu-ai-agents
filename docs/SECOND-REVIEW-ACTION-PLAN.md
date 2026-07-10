@@ -79,7 +79,7 @@ sign-off still customer work.
 
 ### Update 2026-07-10 — clean-account deploy evidence (gaps 1, 2, 3, 4, 5, 6)
 
-These were proven against a real AWS account (864217980669, us-east-1) and torn down; see `docs/evidence/clean-account-deploy.md` and `docs/evidence/identity-and-accessibility.md`:
+These were proven against a real AWS account (111122223333, us-east-1) and torn down; see `docs/evidence/clean-account-deploy.md` and `docs/evidence/identity-and-accessibility.md`:
 
 - **Gap 1 (clean-account CFN deploy) ✅** — `aws cloudformation create-stack` → CREATE_COMPLETE for a golden-path stack (KMS + append-only audit + Lambda). *(The FULL quickstart.yaml nested stack remains ⬜.)*
 - **Gap 2 (real model invocation) ✅** — the deployed Lambda invoked `us.anthropic.claude-sonnet-4-6` and stored a real answer.
