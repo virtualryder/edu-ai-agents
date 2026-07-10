@@ -8,7 +8,7 @@ export EXTRACT_MODE ?= demo
 export CONNECTOR_MODE ?= fixture
 
 .PHONY: help install test test-platform test-governance test-agents manifest demo serve clean \
-        test-provisioner golden-path-01 eval-concierge
+        test-provisioner golden-path-01 eval-concierge lint check-maturity
 
 help:
 	@echo "make install        - install platform_core (editable) + test deps"
@@ -16,6 +16,8 @@ help:
 	@echo "make test-platform  - platform_core gateway/masker tests"
 	@echo "make test-governance- grounding, redteam, fairness, HITL, manifest"
 	@echo "make test-agents     - all 8 agent graph tests"
+	@echo "make lint           - cfn-lint all CloudFormation templates (.cfnlintrc); ruff fallback; no-op if neither installed"
+	@echo "make check-maturity - verify MATURITY.yaml offline_total matches the collected test count"
 	@echo "make manifest       - regenerate the hash-pinned prompt manifest"
 	@echo "make eval-concierge - scored quality benchmark for Agent 01 (College Scorecard connector)"
 	@echo "make demo AGENT=01-student-family-concierge - run an agent's Streamlit demo"
@@ -44,6 +46,25 @@ test-governance:
 
 test-agents:
 	$(PY) -m pytest $(wildcard [0-9][0-9]-*/tests) -q
+
+# Lint the CloudFormation templates. cfn-lint reads .cfnlintrc (which globs
+# infra/cloudformation/*.yaml and tracks the explicit ignore allow-list). Falls
+# back to ruff for Python if cfn-lint is absent, and is a no-op (never fails the
+# build) if neither tool is installed — so `make lint` always exists.
+lint:
+	@if command -v cfn-lint >/dev/null 2>&1; then \
+		echo "== cfn-lint (infra/cloudformation/*.yaml via .cfnlintrc) =="; \
+		cfn-lint; \
+	elif command -v ruff >/dev/null 2>&1; then \
+		echo "== ruff (cfn-lint not installed) =="; \
+		ruff check .; \
+	else \
+		echo "lint: neither cfn-lint nor ruff installed; skipping (no-op). Install with: pip install cfn-lint"; \
+	fi
+
+# Drift-check MATURITY.yaml's declared offline_total against the collected suite.
+check-maturity:
+	$(PY) tools/check_maturity.py
 
 manifest:
 	$(PY) -m governance.prompt_registry --update
