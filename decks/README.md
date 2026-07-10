@@ -3,7 +3,7 @@
 Nine PowerPoint decks for the **EDU AI Agent Suite** — eight governed AI agents for
 education institutions plus the executive suite overview. All nine are generated from a
 single pptxgenjs generator ([`build-agent-decks.js`](build-agent-decks.js)) so they share
-one AWS-standard layout, palette, and fonts; only the per-agent content object changes.
+one consistent professional layout, palette, and fonts; only the per-agent content object changes.
 
 Audience: **CIO / CFO / Director of Infrastructure / CISO.** Board-defensible metrics, an
 explicit cost of doing nothing, and source-class tags on every stat.
@@ -39,7 +39,7 @@ explicit cost of doing nothing, and source-class tags on every stat.
 ## Per-agent deck — 6-slide executive narrative
 
 Every agent deck follows the user's required order — **ISSUE → COST OF DOING NOTHING → HOW WE
-SOLVE IT → ARCHITECTURE → PROOF** — replicating the AWS-standard reference layout:
+SOLVE IT → ARCHITECTURE → PROOF** — using a consistent professional layout:
 
 1. **Title** *(navy)* — agent name; orange subtitle "A Governed Agentic AI Reference
    Architecture for Education"; footer "EDU AI Agent Suite · Built on AWS · June 2026".
@@ -81,7 +81,7 @@ the takeaway.
 
 ## Design system (AWS standard)
 
-- **Palette:** Squid Ink navy `#232F3E` (dark slides, titles); AWS Orange `#FF9900` (accents, big
+- **Palette:** deep navy `#232F3E` (dark slides, titles); amber `#FF9900` (accents, big
   stat numbers, the thin left-edge brand bar on every slide, step numbers); teal/green `#16A085`
   (secondary / positive flow boxes); red `#C0392B` (reserved for the HUMAN-GATE box only); light
   gray `#F2F3F4` content backgrounds; white cards with subtle shadow. The architecture diagram uses

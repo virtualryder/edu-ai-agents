@@ -1,6 +1,6 @@
 /* EDU AI Agent Suite — Go-to-Market deck generator
  * ONE generator drives all 9 decks (8 agents + suite overview) from per-agent
- * content objects, replicating the AWS-standard reference layout supplied by
+ * content objects, using a consistent professional layout defined by
  * the user (navy title / navy stat hook / light issue+cost / light governed
  * pipeline / light AWS architecture+traffic flow / navy proof+payback).
  *
@@ -12,10 +12,10 @@
 const pptxgen = require("pptxgenjs");
 
 // ============================================================ PALETTE / FONTS
-const SQUID   = "232F3E"; // Squid Ink navy — dark slide bg, titles
+const SQUID   = "232F3E"; // deep navy — dark slide bg, titles
 const SQUID2  = "2E3B4E"; // lighter navy (stat cards on dark)
 const SQUID3  = "1B2530"; // deeper navy for takeaway bars
-const ORANGE  = "FF9900"; // AWS orange — accents, edge bar, stat numbers
+const ORANGE  = "FF9900"; // amber — accents, edge bar, stat numbers
 const ORANGED = "E88A00"; // darker orange
 const TEAL    = "16A085"; // secondary cards / positive flow
 const RED     = "C0392B"; // HUMAN-GATE only
