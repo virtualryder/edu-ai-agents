@@ -17,7 +17,7 @@ A release records both. A CISO reviews AGP once; each release shows the implemen
 |---|---|---|
 | **Test report** | The offline suite passes (no API key, no AWS) | `pytest -q` |
 | **SAST (bandit)** | No high-severity code security findings | `bandit -r platform_core governance -ll` |
-| **Dependency audit (pip-audit)** | No known-vulnerable dependencies (advisory until pinned with hashes) | `pip-audit` |
+| **Dependency audit (pip-audit)** | No known-vulnerable dependencies; audited against the pinned lockfile (`platform_core/requirements-lock.txt`) — **BLOCKING** in CI (no silent fallback: a missing lockfile or a CVE fails the job) | `pip-audit -r platform_core/requirements-lock.txt` |
 | **IaC lint/scan (cfn-lint, checkov)** | CloudFormation is valid; no high IaC misconfigurations | `cfn-lint`, `checkov -d infra` |
 | **SBOM (CycloneDX)** | A complete software bill of materials for supply-chain review | `cyclonedx-py` |
 | **Clean-account deploy report** | The golden path deployed, ran, and tore down in a clean account | `evidence/CLEAN-ACCOUNT-ACCEPTANCE.md` |
