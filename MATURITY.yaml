@@ -9,7 +9,7 @@ positioning: reference-accelerator
 updated: 2026-07-10
 
 tests:
-  offline_total: 191                          # collected-test count; verified by tools/check_maturity.py (190 passed + 1 skipped, 2026-07-10, root pytest)
+  offline_total: 197                          # collected-test count; verified by tools/check_maturity.py (190 passed + 1 skipped, 2026-07-10, root pytest)
   reproduce: "PYTHONPATH=platform_core:. pytest -q   # canonical offline total (root collection)"
   last_verified: 2026-07-10
   note: "Root pytest is the canonical count (191 collected). `make test` runs a per-process subset and reports a different figure; cite this file."

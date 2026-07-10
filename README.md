@@ -113,7 +113,7 @@ Every agent includes a Streamlit demo app, fixture data, and tests that run with
 ### 3. Run the test suite
 
 ```bash
-make test                         # runs the governance + agent suites (canonical offline total: 191 tests — see MATURITY.yaml; +7 provisioner tests via `make test-provisioner`)
+make test                         # runs the governance + agent suites (canonical offline total: 197 tests — see MATURITY.yaml; +7 provisioner tests via `make test-provisioner`)
 ```
 
 ### 4. Validate CloudFormation templates
