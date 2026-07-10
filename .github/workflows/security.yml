@@ -54,9 +54,9 @@ jobs:
       - name: Audit declared dependencies (BLOCKING)
         run: |
           set -e
-          pip-audit -r platform_core/requirements-lock.txt 2>/dev/null \
-            || pip-audit --progress-spinner off \
-                 $(for r in */requirements.txt; do echo -n " -r $r"; done)
+          # Authoritative pinned lockfile (tools/gen_lock or pip-compile). No silent
+          # fallback: if the lockfile is missing or has a CVE, the job FAILS.
+          pip-audit --progress-spinner off -r platform_core/requirements-lock.txt
 
   secret-scan:
     name: detect-secrets (secret scan)
