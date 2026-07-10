@@ -23,7 +23,7 @@
 ## Capability maturity matrix
 
 ✅ = evidence in this repo (code + passing test, shipped template, or documented artifact) · ◻ = not done here / customer-engagement work.
-Derived from the authoritative [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md). No CloudFormation stack has been stood up in a clean account (the 2026-07-07 live validation exercised direct-API provisioning only, by design), so the deployed-on-AWS column is honestly empty.
+Derived from the authoritative [`MATURITY.yaml`](MATURITY.yaml). On **2026-07-10 a golden-path CloudFormation stack was deployed clean and evidenced** — a real Bedrock model invocation, a masked write to a DEPLOYED append-only audit table, runtime student-PII masking, plus a real Cognito JWT verified by the production path and an axe-core pass (see [`docs/evidence/`](docs/evidence/)). The repo's FULL `quickstart.yaml` nested stack has not yet been stood up end-to-end, so the deployed-on-AWS column stays conservative pending that.
 
 | Capability | Designed | Implemented (offline/tested) | Deployed on AWS (validated) | Integration-tested on AWS | Production-ready | Owner (Repo/Customer) |
 |---|:--:|:--:|:--:|:--:|:--:|---|
@@ -45,7 +45,7 @@ Nothing in this repository is production-certified; see [`docs/PRODUCTION-READIN
 
 *Governance once, agents as add-ons: `platform_core` (`edu-agent-platform` 0.1.0) **implements the Aegis Governance Pattern (AGP) v1.0** — the shared governance contract defined in the Aegis platform repo (`docs/14-GOVERNANCE-PATTERN-VERSIONING.md`). Conformance is declared in `platform_core/edu_agent_platform/__init__.py` (`AEGIS_GOVERNANCE_PATTERN_VERSION`) and asserted by `platform_core/tests/test_agp_conformance.py`.*
 
-> **Validation update (2026-07-07).** The 2026-06-30 resource-level verification was independently re-verified: no `edu-*` stacks in account history (consistent with the direct-API approach — no overclaim), the `eduverify` KMS key auto-deleted on schedule, zero residual resources. Offline suite: 120 tests green. The clean-account `quickstart.yaml` stack deploy remains the documented open gap. Sanitized proof pack: [`evidence/CLEAN-ACCOUNT-ACCEPTANCE.md`](evidence/CLEAN-ACCOUNT-ACCEPTANCE.md).
+> **Validation update (2026-07-10).** A golden-path CloudFormation stack (`aws cloudformation create-stack` → `CREATE_COMPLETE`) proved, in a clean account and then torn down: a REAL model invocation (`us.anthropic.claude-sonnet-4-6`), a masked record in a DEPLOYED append-only DynamoDB audit table (conditional PutItem · CMK · PITR), RUNTIME student-PII masking (SSN/email/student-id redacted in the cloud), a real Cognito RS256 JWT verified by the production `verify_jwt` path (JWKS/iss/aud/exp), and an axe-core 4.12.1 pass (0 violations). Zero residual resources. Canonical offline suite: **174 passed, 1 skipped**. STILL OPEN: the full `quickstart.yaml` nested clean-account deploy, real SIS/LMS connectors, pen test, manual WCAG. Evidence: [`docs/evidence/clean-account-deploy.md`](docs/evidence/clean-account-deploy.md) · [`docs/evidence/identity-and-accessibility.md`](docs/evidence/identity-and-accessibility.md).
 
 ### Hero pilot — Student & Family Concierge (lead, low-blast-radius)
 
@@ -113,7 +113,7 @@ Every agent includes a Streamlit demo app, fixture data, and tests that run with
 ### 3. Run the test suite
 
 ```bash
-make test                         # runs all governance + agent tests (120 tests across platform, governance, and agents, as of 2026-07-07; +7 provisioner tests via `make test-provisioner`)
+make test                         # runs the governance + agent suites (canonical offline total: 174 tests — see MATURITY.yaml; +7 provisioner tests via `make test-provisioner`)
 ```
 
 ### 4. Validate CloudFormation templates

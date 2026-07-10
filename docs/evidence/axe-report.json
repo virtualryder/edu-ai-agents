@@ -1,0 +1,16 @@
+{
+  "axe_version": "4.12.1",
+  "violations": 0,
+  "violation_ids": [],
+  "rules_passed": 17,
+  "wcag_criteria_passed": [
+    "wcag111",
+    "wcag131",
+    "wcag241",
+    "wcag242",
+    "wcag244",
+    "wcag2a",
+    "wcag311",
+    "wcag412"
+  ]
+}

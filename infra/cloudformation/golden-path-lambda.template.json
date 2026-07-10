@@ -1,0 +1,195 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "EDU golden-path verification stack: KMS CMK + append-only audit + Bedrock-invoking, PII-masking Lambda (delete me).",
+  "Parameters": {
+    "ModelId": {
+      "Type": "String",
+      "Default": "us.anthropic.claude-sonnet-4-20250514-v1:0"
+    },
+    "GuardrailId": {
+      "Type": "String",
+      "Default": ""
+    }
+  },
+  "Resources": {
+    "Cmk": {
+      "Type": "AWS::KMS::Key",
+      "Properties": {
+        "Description": "eduverify golden-path CMK",
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "root",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "arn:aws:iam::864217980669:root"
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "AuditTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "audit_id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "audit_id",
+            "KeyType": "HASH"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "SSESpecification": {
+          "SSEEnabled": true,
+          "SSEType": "KMS",
+          "KMSMasterKeyId": {
+            "Ref": "Cmk"
+          }
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        }
+      }
+    },
+    "FnRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "gp",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:*:*:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "AuditTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel"
+                  ],
+                  "Resource": [
+                    "arn:aws:bedrock:*::foundation-model/*",
+                    "arn:aws:bedrock:*:864217980669:inference-profile/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:ApplyGuardrail"
+                  ],
+                  "Resource": "arn:aws:bedrock:*:864217980669:guardrail/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Cmk",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Fn": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "eduverify-golden-path",
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Timeout": 30,
+        "MemorySize": 256,
+        "Role": {
+          "Fn::GetAtt": [
+            "FnRole",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "AUDIT_TABLE": {
+              "Ref": "AuditTable"
+            },
+            "MODEL_ID": {
+              "Ref": "ModelId"
+            },
+            "GUARDRAIL_ID": {
+              "Ref": "GuardrailId"
+            }
+          }
+        },
+        "Code": {
+          "ZipFile": "import json, os, re, time, hashlib, boto3\nddb = boto3.client(\"dynamodb\")\nbr = boto3.client(\"bedrock-runtime\")\nTABLE = os.environ[\"AUDIT_TABLE\"]\nMODEL = os.environ[\"MODEL_ID\"]\nGID = os.environ.get(\"GUARDRAIL_ID\", \"\")\nPATS = [\n    (re.compile(r\"\\b\\d{3}-\\d{2}-\\d{4}\\b\"), \"[SSN-REDACTED]\"),\n    (re.compile(r\"\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b\"), \"[EMAIL-REDACTED]\"),\n    (re.compile(r\"\\bS-\\d+\\b\"), \"[SID-REDACTED]\"),\n]\ndef mask(t):\n    for p, r in PATS:\n        t = p.sub(r, t)\n    return t\ndef handler(event, context):\n    q = event.get(\"query\", \"What are the fall enrollment deadlines?\")\n    body = event.get(\"student_body\", \"\")\n    sub = (event.get(\"claims\") or {}).get(\"sub\", \"anon\")\n    kw = {\"modelId\": MODEL, \"body\": json.dumps({\"anthropic_version\": \"bedrock-2023-05-31\", \"max_tokens\": 150, \"messages\": [{\"role\": \"user\", \"content\": q}]})}\n    if GID:\n        kw[\"guardrailIdentifier\"] = GID\n        kw[\"guardrailVersion\"] = \"DRAFT\"\n    resp = br.invoke_model(**kw)\n    out = json.loads(resp[\"body\"].read())\n    ans = \"\"\n    c = out.get(\"content\")\n    if isinstance(c, list) and c:\n        ans = c[0].get(\"text\", \"\")\n    masked_body = mask(body)\n    masked_ans = mask(ans)\n    aid = \"AUD-\" + hashlib.sha256((str(time.time()) + q + sub).encode()).hexdigest()[:20]\n    item = {\"audit_id\": {\"S\": aid}, \"ts\": {\"N\": str(int(time.time()))}, \"user\": {\"S\": sub}, \"model\": {\"S\": MODEL}, \"student_body_masked\": {\"S\": masked_body[:400]}, \"answer_masked\": {\"S\": masked_ans[:400]}, \"pii_masked\": {\"BOOL\": masked_body != body}}\n    ddb.put_item(TableName=TABLE, Item=item, ConditionExpression=\"attribute_not_exists(audit_id)\")\n    return {\"audit_id\": aid, \"model\": MODEL, \"answer_masked\": masked_ans, \"student_body_masked\": masked_body, \"pii_masked\": masked_body != body}\n"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "FunctionName": {
+      "Value": {
+        "Ref": "Fn"
+      }
+    },
+    "AuditTableName": {
+      "Value": {
+        "Ref": "AuditTable"
+      }
+    },
+    "CmkArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Cmk",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

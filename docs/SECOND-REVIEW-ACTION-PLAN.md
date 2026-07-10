@@ -76,3 +76,17 @@ production-readiness plan is the full backlog; this is the scorecard for the sec
 The bottom line is unchanged and stated in [`STATUS-MANIFEST.md`](STATUS-MANIFEST.md): platform
 controls built and tested, Agent 01 golden-path demonstrated locally, AWS-deploy and production
 sign-off still customer work.
+
+### Update 2026-07-10 — clean-account deploy evidence (gaps 1, 2, 3, 4, 5, 6)
+
+These were proven against a real AWS account (864217980669, us-east-1) and torn down; see `docs/evidence/clean-account-deploy.md` and `docs/evidence/identity-and-accessibility.md`:
+
+- **Gap 1 (clean-account CFN deploy) ✅** — `aws cloudformation create-stack` → CREATE_COMPLETE for a golden-path stack (KMS + append-only audit + Lambda). *(The FULL quickstart.yaml nested stack remains ⬜.)*
+- **Gap 2 (real model invocation) ✅** — the deployed Lambda invoked `us.anthropic.claude-sonnet-4-6` and stored a real answer.
+- **Gap 3 (deployed immutable audit) ✅** — a masked record landed in the DEPLOYED DynamoDB audit table via a conditional/append-only PutItem (CMK-encrypted, PITR).
+- **Gap 5 (runtime PII masking) ✅** — SSN/email/student-id redacted at runtime in the cloud before the audit write.
+- **Gap 4 (production identity federation) ✅** — a real Cognito-issued RS256 JWT verified by the production `verify_jwt` path (JWKS/iss/aud/exp); tampered token rejected.
+- **Gap 6 (accessibility conformance) ✅ (automated)** — axe-core 4.12.1: 0 violations, 17 rules passed. *(Manual screen-reader/PDF-UA conformance remains customer work.)*
+- **Gap 7 (status/test-count) ✅** — canonical root pytest **174 passed, 1 skipped**; fixed a `test_agp_conformance.py` import that had broken full-suite collection; `MATURITY.yaml` `clean_account_deploy.status` moved `not-yet -> partial`.
+
+**Still open:** the full quickstart.yaml nested clean-account deploy, real SIS/LMS connectors, independent pen test, full manual WCAG conformance, load/DR test.

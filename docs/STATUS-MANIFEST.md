@@ -1,6 +1,7 @@
 # Status Manifest — EDU AI Agent Suite
 
-*Single source of truth for maturity. Last reconciled: June 2026.*
+*Per-agent status detail. The **machine-readable source of truth** for test counts and maturity is
+[`../MATURITY.yaml`](../MATURITY.yaml); this document reconciles to it. Last reconciled: 2026-07-09.*
 
 > **This file is authoritative.** The status tables and maturity statements in `README.md`,
 > `SUITE-STATUS.md`, the per-agent `README.md` files, and `docs/AWS-DEPLOYMENT-VALIDATION.md`
@@ -54,7 +55,7 @@ Columns: **Arch** = Architecture documented · **Unit** = Unit tested · **Local
 ### Column notes (why these answers)
 
 - **Arch = Yes (all):** every agent has architecture, workflow, tool grants, and compliance design written and reviewed; the shared six-layer platform is documented in `docs/SUITE-ARCHITECTURE.md` and `docs/WHY-THE-MCP-LAYER.md`.
-- **Unit = Yes (all):** the platform and governance suites pass (`platform_core/tests`, `governance/tests`, `infra/lambdas/agentcore_provisioner`) — 74 tests pass (as of 2026-07-07) via `python -m pytest platform_core/tests governance/tests infra/lambdas/agentcore_provisioner -q --ignore=governance/tests/test_hitl_gates.py`; the full `make test` suite (platform + governance + all 8 agents) is 120 tests green. Each agent additionally ships a `tests/` suite.
+- **Unit = Yes (all):** the platform and governance suites pass. The **canonical offline total is 174 tests** (root `pytest -q`, verified 2026-07-10 — the number in [`../MATURITY.yaml`](../MATURITY.yaml)). Subset commands report different figures by design (e.g. the platform+governance+provisioner subset is ~74 with `--ignore=governance/tests/test_hitl_gates.py`; `make test` runs a per-process subset). Cite `MATURITY.yaml` for the headline number. Each agent additionally ships a `tests/` suite.
 - **LocalInt = Yes** for the platform and **01/04/05** (they have `demo/demo_live.py` + `tests/test_live_path.py` running the agent end-to-end over real HTTP through the gateway). **Partial** for 02/03/06/07/08: they run end-to-end in `EXTRACT_MODE=demo` against fixtures and have test suites, but no local-HTTP live path yet.
 - **AWSDeploy = No (all):** no independently-proven deploy in a clean AWS account. Templates parse and lint (`docs/AWS-DEPLOYMENT-VALIDATION.md`), and Agent 01 has a one-command `make golden-path-01` path, but a verified clean-account stand-up is **Gap 1** in the second review — customer/engagement-owned.
 - **RealModel = No (all):** tests and demos use deterministic fixtures and a demo-aware generator. Inference auto-selects Bedrock → Anthropic → demo, but no real-model invocation is asserted in-repo.

@@ -6,19 +6,31 @@ repo: edu-ai-agents
 display_name: EDU AI Agents (K-12 & Higher Education)
 governance_pattern: "Aegis Governance Pattern (AGP) v1.0"
 positioning: reference-accelerator
-updated: 2026-07-09
+updated: 2026-07-10
 
 tests:
-  offline_total: 166                          # + 1 skipped (2026-07-09, root pytest)
-  reproduce: "PYTHONPATH=platform_core:. pytest -q"
-  last_verified: 2026-07-09
+  offline_total: 174                          # + 1 skipped (2026-07-10, root pytest; grew with the agent expansion)
+  reproduce: "PYTHONPATH=platform_core:. pytest -q   # canonical offline total (root collection)"
+  last_verified: 2026-07-10
+  note: "Root pytest is the canonical count (174). `make test` runs a per-process subset and reports a different figure; cite this file."
 
 clean_account_deploy:
-  status: not-yet                             # IMPORTANT: do NOT pitch EDU as deploy-validated
-  detail: "Resource-level provisioning was validated (no residual resources; eduverify KMS key auto-deleted),
-           but NO clean-account CloudFormation stack has been stood up end-to-end yet. This is the
-           documented open gap. The quickstart.yaml clean-account deploy remains to be run."
-  evidence: evidence/CLEAN-ACCOUNT-ACCEPTANCE.md
+  status: partial                             # golden-path CFN stack deployed + evidenced 2026-07-10; full quickstart nested deploy still open
+  detail: "A purpose-built golden-path CloudFormation stack (KMS CMK + append-only DynamoDB audit + a
+           Lambda that invokes Amazon Bedrock Claude and masks student PII) WAS deployed clean via
+           create-stack (CREATE_COMPLETE) on 2026-07-10 and evidenced: a REAL model invocation
+           (us.anthropic.claude-sonnet-4-6), a masked record written to the DEPLOYED immutable audit
+           table (conditional/append-only PutItem, CMK-encrypted, PITR), and RUNTIME PII masking
+           (SSN/email/student-id redacted in the cloud). A real Cognito-issued JWT was verified by the
+           production verify_jwt path (RS256 signature vs JWKS, iss/aud/exp), and an axe-core 4.12.1
+           scan passed (0 violations). All resources torn down; zero residual. STILL OPEN: the repo's
+           FULL quickstart.yaml nested stack (VPC/edge/AgentCore/connectors/IdP federation) end-to-end,
+           real SIS/LMS connectors, independent pen test, and full manual WCAG conformance."
+  evidence:
+    - evidence/CLEAN-ACCOUNT-ACCEPTANCE.md
+    - docs/evidence/clean-account-deploy.md
+    - docs/evidence/identity-and-accessibility.md
+    - docs/evidence/axe-report.json
 
 hero_agent: 01-student-family-concierge
 maturity_scale: [documented, demonstrated, deployable, deploy-validated, production-ready]
@@ -28,7 +40,7 @@ agents:
     name: Student & Family Concierge
     hero: true
     maturity: demonstrated                    # NOT deploy-validated until clean-account CFN is run
-    clean_account_evidence: false
+    clean_account_evidence: partial          # golden-path controls deploy-validated 2026-07-10 (real model, deployed audit, runtime PII masking, Cognito JWT, axe-core); full agent stack deploy still open
     scored_eval: true                         # governance/evals/score_concierge
     connectors:
       - {kind: kb, source: "College Scorecard (public institution data)", tier: 3-live-reference, access: read-only, note: "public data, NOT a student record"}
@@ -41,7 +53,7 @@ agents:
   - {id: 07-document-accessibility-services, name: Document Accessibility Services, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
   - {id: 08-operations-service-desk, name: Operations Service Desk, maturity: demonstrated, clean_account_evidence: false, connectors_tier: 1-fixture}
 
-pitch_guidance: "Use for workshops/envisioning; do NOT present as deploy-validated until a clean-account CFN deploy is completed and evidenced."
+pitch_guidance: "Use for workshops/envisioning and scoped pilots. Golden-path controls (real model + deployed append-only audit + runtime PII masking + Cognito JWT + axe-core) are clean-account-EVIDENCED (2026-07-10); do NOT present the FULL agent stack as deploy-validated until the quickstart.yaml nested clean-account deploy is completed and evidenced."
 
 references:
   readme: README.md
