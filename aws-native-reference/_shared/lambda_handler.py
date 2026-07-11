@@ -50,6 +50,25 @@ def lambda_handler(event, context=None):
     payload = {}
     if isinstance(event, dict):
         payload = event.get("input", event)
+    if not isinstance(payload, dict):
+        payload = {}
+    # Identity is taken from the VERIFIED API Gateway JWT authorizer context when present
+    # (requestContext.authorizer.jwt.claims), never from the body. Without an authorizer
+    # context we fall back to verify_jwt, which accepts a claims dict ONLY in demo mode and
+    # otherwise fails closed — so a seeded/forged acting_user_claims cannot be trusted in prod.
+    from edu_agent_platform.auth import AuthError, verify_jwt  # noqa: E402
+
+    try:
+        authz = {}
+        if isinstance(event, dict):
+            authz = (event.get("requestContext") or {}).get("authorizer") or {}
+        verified = authz["jwt"].get("claims") if isinstance(authz.get("jwt"), dict) else None
+        if verified is not None:
+            payload = {**payload, "acting_user_claims": verified}  # already verified by API GW
+        else:
+            payload = {**payload, "acting_user_claims": verify_jwt(payload.get("acting_user_claims") or {})}
+    except AuthError as exc:
+        return {"ok": False, "error": "unauthorized", "detail": str(exc)}
     try:
         result = _graph().invoke(payload)
         return json.loads(json.dumps(result, default=str))

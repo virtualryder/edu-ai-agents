@@ -78,6 +78,22 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length) if length else b"{}"
             payload = json.loads(raw or b"{}")
+            if not isinstance(payload, dict):
+                payload = {}
+            # Identity is derived SERVER-SIDE from a verified bearer token — never
+            # trusted from the request body. verify_jwt validates an RS256/JWKS token in
+            # production; in demo mode (no IdP) it accepts a claims dict. It fails closed
+            # (AuthError) otherwise, so a caller cannot self-assert privileged claims.
+            from edu_agent_platform.auth import AuthError, verify_jwt  # noqa: E402
+
+            auth_header = self.headers.get("Authorization", "") or ""
+            bearer = auth_header[7:].strip() if auth_header[:7].lower() == "bearer " else None
+            try:
+                claims = verify_jwt(bearer if bearer else (payload.get("acting_user_claims") or {}))
+            except AuthError as exc:
+                self._send(401, {"ok": False, "error": "unauthorized", "detail": str(exc)})
+                return
+            payload["acting_user_claims"] = claims  # authoritative; overrides any body value
             result = _graph().invoke(payload)
             # Return a JSON-safe projection (drop non-serializable objects).
             safe = json.loads(json.dumps(result, default=str))

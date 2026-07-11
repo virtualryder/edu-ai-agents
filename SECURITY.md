@@ -6,6 +6,17 @@ The EDU AI Agent Suite is an **independent, open-source reference accelerator** 
 
 This policy covers vulnerabilities in the **code and configuration in this repository**. It does **not** cover the security of Amazon Bedrock, AWS, or any other third-party service — report those through the respective vendor's disclosure channel.
 
+## Runtime identity contract
+
+The native entrypoints derive the acting user's identity **server-side** and never trust it
+from the request body. `aws-native-reference/_shared/agentcore_server.py` (`POST /invocations`)
+verifies an `Authorization: Bearer` RS256/JWKS token via `edu_agent_platform.auth.verify_jwt`
+before invoking the graph; `aws-native-reference/_shared/lambda_handler.py` takes claims from the
+**verified** API Gateway JWT authorizer context (`requestContext.authorizer.jwt.claims`). Any
+`acting_user_claims` supplied in the body is overridden by the verified identity. Both fail closed
+(HTTP 401 / `unauthorized`) outside demo mode; a caller-supplied claims dict is accepted **only**
+in demo mode (`EXTRACT_MODE=demo` / `CONNECTOR_MODE=fixture` / `AUTH_ALLOW_UNVERIFIED_CLAIMS=1`).
+
 ## Scope
 
 In scope:
