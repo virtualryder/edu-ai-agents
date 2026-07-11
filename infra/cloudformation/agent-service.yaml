@@ -6,16 +6,14 @@ Description: >
 
     native    -> AWS Step Functions state machine implementing the specialist
                  pattern (Intake -> Retrieve -> Draft/Analyze -> Policy gate ->
-                 Routing -> HITL gate -> Finalize) plus the supporting Lambdas.
-                 The HITL gate is a waitForTaskToken state that suspends until a
-                 verified reviewer identity is bound into the HITL queue record.
+                 Routing -> HITL gate -> Finalize) plus Lambdas. The HITL gate
+                 is a waitForTaskToken state that suspends until a
+                 verified reviewer identity is bound into the queue record.
 
     container -> AgentCore Runtime container registration (ARM64, /invocations +
-                 /ping, port 8080). AgentCore Runtime resource types are not yet
-                 fully expressible in plain CloudFormation; this path records the
-                 container contract / image config in SSM and (optionally) calls
-                 a customer-supplied custom-resource Lambda to register the
-                 runtime. See the labeled note below.
+                 /ping, port 8080). Not yet fully expressible in plain CFN;
+                 records the container contract in SSM and
+                 optionally calls a custom-resource Lambda to register it.
 
   The bright line holds on both paths: no route from intake to finalize bypasses
   the HITL gate for a consequential action (grades, admissions, discipline,

@@ -10,33 +10,33 @@ Description: >
   failures, human-approval backlog / HITL timeout, grounding-verification
   failures, Bedrock throttling + latency, Lambda errors/throttles on the agent
   functions, DynamoDB audit write failures, and an estimated-charges cost guard.
-  #
-  # =========================================================================
-  # CUSTOM METRICS THE APPLICATION MUST EMIT (put_metric_data)
-  #   Namespace: the CustomMetricNamespace parameter (default "EduAgentSuite").
-  #   The app (mcp_gateway / audit / runtime) MUST publish these EXACT metric
-  #   names for the custom-metric alarms below to function. Emit them with a
-  #   Dimension of Environment=<env> so the alarms (which filter on that
-  #   dimension) match. Recommended unit: Count.
-  #
-  #     ToolAuthorizationDenied  - increment on every gateway DENY decision
-  #                                (deny-by-default / intersection refusal).
-  #     PiiMaskingFailure        - increment whenever PII masking raises / fails
-  #                                BEFORE a prompt or audit write (must be 0).
-  #     ApprovalBacklogAge       - age (seconds) of the OLDEST PENDING item in
-  #                                the HITL queue, emitted periodically.
-  #     HitlApprovalTimeout      - increment when a waitForTaskToken HITL gate
-  #                                times out / fails closed (must be 0).
-  #     GroundingFailure         - increment on a grounding-verification failure
-  #                                (model output not supported by retrieved
-  #                                evidence) - model-degradation signal.
-  #     AuditWriteFailure        - increment when an append-only audit PutItem
-  #                                fails (the trail must never silently drop a
-  #                                record - must be 0).
-  #
-  #   AWS-namespace metrics (AWS/Bedrock, AWS/Lambda, AWS/DynamoDB, AWS/Billing)
-  #   are emitted by the services automatically - no app code required.
-  # =========================================================================
+
+# =========================================================================
+# CUSTOM METRICS THE APPLICATION MUST EMIT (put_metric_data)
+#   Namespace: the CustomMetricNamespace parameter (default "EduAgentSuite").
+#   The app (mcp_gateway / audit / runtime) MUST publish these EXACT metric
+#   names for the custom-metric alarms below to function. Emit them with a
+#   Dimension of Environment=<env> so the alarms (which filter on that
+#   dimension) match. Recommended unit: Count.
+#
+#     ToolAuthorizationDenied  - increment on every gateway DENY decision
+#                                (deny-by-default / intersection refusal).
+#     PiiMaskingFailure        - increment whenever PII masking raises / fails
+#                                BEFORE a prompt or audit write (must be 0).
+#     ApprovalBacklogAge       - age (seconds) of the OLDEST PENDING item in
+#                                the HITL queue, emitted periodically.
+#     HitlApprovalTimeout      - increment when a waitForTaskToken HITL gate
+#                                times out / fails closed (must be 0).
+#     GroundingFailure         - increment on a grounding-verification failure
+#                                (model output not supported by retrieved
+#                                evidence) - model-degradation signal.
+#     AuditWriteFailure        - increment when an append-only audit PutItem
+#                                fails (the trail must never silently drop a
+#                                record - must be 0).
+#
+#   AWS-namespace metrics (AWS/Bedrock, AWS/Lambda, AWS/DynamoDB, AWS/Billing)
+#   are emitted by the services automatically - no app code required.
+# =========================================================================
 
 # ---------------------------------------------------------------------------
 # Parameters

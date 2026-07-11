@@ -564,8 +564,13 @@ Resources:
 
   DemoECSService:
     Type: AWS::ECS::Service
+    # Depend on the unconditional target group rather than a specific listener:
+    # exactly one of HTTPListener (UseHTTP) / HTTPSListener (UseHTTPS) exists, so
+    # a hard DependsOn on HTTPListener breaks the UseHTTPS deploy path. The
+    # target group is the load-balancer attachment point both listeners forward
+    # to, and is created in every path.
     DependsOn:
-      - HTTPListener
+      - DemoTargetGroup
     Properties:
       ServiceName: !Sub "${DemoInstanceName}-concierge-svc"
       Cluster: !Ref DemoECSCluster
