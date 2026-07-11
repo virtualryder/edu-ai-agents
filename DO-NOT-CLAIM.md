@@ -30,7 +30,7 @@ or AWS leadership can trust every other claim in the portfolio.*
 - ❌ "Scored quality benchmarks prove model accuracy." → ✅ *The evals are harnesses over the
   deterministic reference pipeline with a real PII/PHI-leak gate — not a model-quality benchmark.*
 - ❌ "Data never leaves the VPC." → ✅ *Bedrock is a regional AWS service reached over PrivateLink;
-  sensitive fields are masked before any model call; no egress to external non-AWS AI APIs by default.
+  sensitive fields are masked at the audit and model-output boundaries (input filterable by Bedrock Guardrails, not blanket pre-scrubbed); no egress to external non-AWS AI APIs by default.
   This is a strong posture, not an absolute guarantee, and does not by itself make a deployment
   compliant.*
 - ❌ "AWS endorses / sponsors this." → ✅ *Built on AWS; not affiliated with, endorsed by, or
