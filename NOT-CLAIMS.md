@@ -23,7 +23,7 @@ A **governed reference architecture and implementation accelerator** — archite
 
 ## On the data-location and compliance language in this repo
 
-Where this repository describes inference, it means: **Amazon Bedrock is a regional AWS service reached from the customer's VPC over AWS PrivateLink (private connectivity) — not "Bedrock runs inside your VPC."** Sensitive fields are masked before any model call, and there is no egress to external (non-AWS) AI APIs. This is a strong data-handling posture; it is **not** an absolute "data never leaves the VPC" guarantee, and it does not by itself make a deployment compliant. Customer compliance depends on the applicable BAA/agreements, service eligibility, configuration, operations, and the AWS shared-responsibility model.
+Where this repository describes inference, it means: **Amazon Bedrock is a regional AWS service reached from the customer's VPC over AWS PrivateLink (private connectivity) — not "Bedrock runs inside your VPC."** Sensitive fields are masked at the audit and model-output boundaries (input filterable by Bedrock Guardrails, not blanket pre-scrubbed), and there is no egress to external (non-AWS) AI APIs. This is a strong data-handling posture; it is **not** an absolute "data never leaves the VPC" guarantee, and it does not by itself make a deployment compliant. Customer compliance depends on the applicable BAA/agreements, service eligibility, configuration, operations, and the AWS shared-responsibility model.
 
 ---
 

@@ -442,7 +442,7 @@ const AGENTS = [
     s2: "[00:45] Hook. Lead with the Harvard RCT (gov/peer-reviewed): >2× learning in less time. The $1.2–2.5M is the modeled human-tutoring substitution cost for 1,000 students. Present as documented-at-study, modeled-at-your-baseline.",
     s3: "[01:10] Issue + cost. The cost-of-nothing is either large recurring tutoring spend or an equity gap where most students get no help. Bright line: the tutor coaches, never grades, never dumps answers, and escalates distress.",
     s4: "[01:35] Pipeline. Note step 4 is a human ESCALATION, not an approval gate — distress or repeated struggle routes to a counselor/instructor. Integrity audit supports academic-integrity review.",
-    s5: "[02:15] Architecture. To deploy, the customer provides: IdP, LMS connectivity, and the approved course corpus to index. AgentCore memory is retention-bounded; PII is masked before any model call. Guardrails enforce Socratic, no-answer-dumping behavior (enforced at the Bedrock endpoint reached over PrivateLink).",
+    s5: "[02:15] Architecture. To deploy, the customer provides: IdP, LMS connectivity, and the approved course corpus to index. AgentCore memory is retention-bounded; PII is masked at the audit and model-output boundaries (input filterable by Bedrock Guardrails, not blanket pre-scrubbed). Guardrails enforce Socratic, no-answer-dumping behavior (enforced at the Bedrock endpoint reached over PrivateLink).",
     s6: "[02:45] Proof + deploy. Outcomes are documented at the Harvard study or modeled at the customer baseline. Close on governance as the product: integrity guardrails + escalation are what make an AI tutor defensible to a provost.",
   },
 },
