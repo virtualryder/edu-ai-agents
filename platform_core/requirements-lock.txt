@@ -136,7 +136,7 @@ pydantic==2.13.4
     #   langchain-core
     #   langgraph
     #   langsmith
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pydeck==0.9.3
     # via streamlit
