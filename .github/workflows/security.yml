@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install bandit
-        run: pip install bandit
+        run: pip install bandit==1.9.4
       - name: Run bandit (BLOCKING at medium+, baselined)
         # B101 (assert_used) is expected in pytest suites; excluded so test
         # asserts do not block. The 4 PRE-EXISTING medium findings (3x B104
