@@ -8,28 +8,28 @@ Description: >
   only (never authenticated agent responses, which carry student data), and
   forwards the API/auth path to the origin (the ALB / AgentCore / authorizer entry).
   The app tier stays in private subnets (network.yaml) with NO public inbound.
-  #
-  # =========================================================================
-  # REQUEST PATH (viewer -> WAF -> CloudFront -> origin)
-  #   Internet
-  #     -> Route 53 (optional custom domain alias, Condition HasHostedZone)
-  #     -> CloudFront distribution (ACM viewer cert, TLS 1.2_2021 minimum)
-  #     -> AWS WAFv2 WebACL (CLOUDFRONT scope) evaluates managed rules +
-  #        rate-based rule; blocks or forwards
-  #     -> Origin (OriginDomainName: the ALB / AgentCore / authorizer endpoint)
-  #   Static asset paths are cached; the /invocations* API path is
-  #   pass-through (CachingDisabled) and forwards Authorization so the
-  #   downstream identity (Cognito) + authorizer (Layer 3) make the decision.
-  #
-  # =========================================================================
-  # us-east-1 CONSTRAINT (MUST READ)
-  #   - A WAFv2 WebACL with Scope: CLOUDFRONT MUST be created in us-east-1.
-  #   - The ACM certificate referenced by a CloudFront viewer cert
-  #     (AcmCertificateArn) MUST also be in us-east-1.
-  #   Therefore THIS ENTIRE STACK MUST BE DEPLOYED IN us-east-1, regardless of
-  #   the region the rest of the suite (network/security/data/gateway/agent)
-  #   runs in. CloudFront is global; only its control-plane home is us-east-1.
-  # =========================================================================
+
+# =========================================================================
+# REQUEST PATH (viewer -> WAF -> CloudFront -> origin)
+#   Internet
+#     -> Route 53 (optional custom domain alias, Condition HasHostedZone)
+#     -> CloudFront distribution (ACM viewer cert, TLS 1.2_2021 minimum)
+#     -> AWS WAFv2 WebACL (CLOUDFRONT scope) evaluates managed rules +
+#        rate-based rule; blocks or forwards
+#     -> Origin (OriginDomainName: the ALB / AgentCore / authorizer endpoint)
+#   Static asset paths are cached; the /invocations* API path is
+#   pass-through (CachingDisabled) and forwards Authorization so the
+#   downstream identity (Cognito) + authorizer (Layer 3) make the decision.
+#
+# =========================================================================
+# us-east-1 CONSTRAINT (MUST READ)
+#   - A WAFv2 WebACL with Scope: CLOUDFRONT MUST be created in us-east-1.
+#   - The ACM certificate referenced by a CloudFront viewer cert
+#     (AcmCertificateArn) MUST also be in us-east-1.
+#   Therefore THIS ENTIRE STACK MUST BE DEPLOYED IN us-east-1, regardless of
+#   the region the rest of the suite (network/security/data/gateway/agent)
+#   runs in. CloudFront is global; only its control-plane home is us-east-1.
+# =========================================================================
 
 # ---------------------------------------------------------------------------
 # Parameters

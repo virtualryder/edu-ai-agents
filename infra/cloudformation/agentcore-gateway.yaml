@@ -7,19 +7,16 @@ Description: >
   system of record, authorizer wiring to Cognito, and short-lived scoped
   tokens.
 
-  IMPORTANT - AgentCore resource coverage: at the time of writing, several
-  Bedrock AgentCore Gateway / Identity resource types are not yet expressible
-  as first-class CloudFormation resources. Where that is the case this template
-  uses (a) a clearly-labeled custom resource backed by a customer-provided
-  Lambda that calls the AgentCore control-plane APIs, and (b) SSM Parameter
-  Store placeholders that record the intended target configuration so the
-  topology is captured in IaC and can be reconciled once native CFN support
-  lands or via the deployment pipeline. The customer must supply the custom-
-  resource Lambda and validate every target against their live systems.
+  IMPORTANT - AgentCore resource coverage: several Bedrock AgentCore Gateway /
+  Identity resource types are not yet first-class CloudFormation resources.
+  Where that is so this template uses (a) a labeled custom resource backed by a
+  customer-provided Lambda calling the AgentCore control-plane APIs, and (b) SSM
+  placeholders recording the intended target config so the topology is captured
+  in IaC. The customer must supply the Lambda and validate every target.
 
-  Enforcement semantics are identical to platform_core/edu_agent_platform/
-  mcp_gateway/ : deny-by-default, least-privilege role intersection, human-
-  approval gate on consequential tools, PII-masked append-only audit.
+  Enforcement semantics match platform_core/edu_agent_platform/mcp_gateway/ :
+  deny-by-default, least-privilege role intersection, human-approval gate on
+  consequential tools, PII-masked audit.
 
 # ---------------------------------------------------------------------------
 # Parameters

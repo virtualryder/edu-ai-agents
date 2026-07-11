@@ -87,6 +87,6 @@ These were proven against a real AWS account (111122223333, us-east-1) and torn 
 - **Gap 5 (runtime PII masking) ✅** — SSN/email/student-id redacted at runtime in the cloud before the audit write.
 - **Gap 4 (production identity federation) ✅** — a real Cognito-issued RS256 JWT verified by the production `verify_jwt` path (JWKS/iss/aud/exp); tampered token rejected.
 - **Gap 6 (accessibility conformance) ✅ (automated)** — axe-core 4.12.1: 0 violations, 17 rules passed. *(Manual screen-reader/PDF-UA conformance remains customer work.)*
-- **Gap 7 (status/test-count) ✅** — canonical root pytest **174 passed, 1 skipped**; fixed a `test_agp_conformance.py` import that had broken full-suite collection; `MATURITY.yaml` `clean_account_deploy.status` moved `not-yet -> partial`.
+- **Gap 7 (status/test-count) ✅** — canonical offline total **197 tests** (root platform+governance `pytest -q`: 174 passed, 1 skipped; agent suites add the remainder — see `MATURITY.yaml` `offline_total: 197`); fixed a `test_agp_conformance.py` import that had broken full-suite collection; `MATURITY.yaml` `clean_account_deploy.status` moved `not-yet -> partial`.
 
 **Still open:** the full quickstart.yaml nested clean-account deploy, real SIS/LMS connectors, independent pen test, full manual WCAG conformance, load/DR test.

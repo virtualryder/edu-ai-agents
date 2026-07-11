@@ -107,21 +107,19 @@ Resources:
       KeyPolicy:
         Version: "2012-10-17"
         Statement:
+          # AWS-recommended pattern: grant the account root kms:* so that IAM
+          # policies on principals (not the key policy) govern key usage. The
+          # agent's access is granted least-privilege by AgentExecutionRole's
+          # own ScopedSecretsAndKms / UseEnvCmk statement (kms:Decrypt +
+          # kms:GenerateDataKey on this key ARN). Naming the role ARN as a
+          # principal here created a KMS-key <-> role circular dependency
+          # (E3004) with no security benefit, since account-root delegation +
+          # the role's IAM policy already authorize exactly that access.
           - Sid: AccountRoot
             Effect: Allow
             Principal:
               AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
             Action: "kms:*"
-            Resource: "*"
-          - Sid: AllowAgentRoleUse
-            Effect: Allow
-            Principal:
-              AWS: !GetAtt AgentExecutionRole.Arn
-            Action:
-              - kms:Encrypt
-              - kms:Decrypt
-              - kms:GenerateDataKey
-              - kms:DescribeKey
             Resource: "*"
 
   EnvKmsKeyAlias:
