@@ -1,5 +1,5 @@
 # Educator Copilot — runtime dependencies
-langgraph>=1.2.7
+langgraph>=1.2.9
 langchain-core>=1.4.9
 streamlit>=1.58.0
 
