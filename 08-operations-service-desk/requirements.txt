@@ -1,5 +1,5 @@
 # Operations & Service Desk — runtime dependencies
-langgraph>=1.2.7
+langgraph>=1.2.9
 langchain-core>=1.4.8
 streamlit>=1.59.1
 
