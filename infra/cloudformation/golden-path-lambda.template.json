@@ -4,7 +4,7 @@
   "Parameters": {
     "ModelId": {
       "Type": "String",
-      "Default": "us.anthropic.claude-sonnet-4-20250514-v1:0"
+      "Default": "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
     },
     "GuardrailId": {
       "Type": "String",
@@ -23,7 +23,9 @@
               "Sid": "root",
               "Effect": "Allow",
               "Principal": {
-                "AWS": "arn:aws:iam::111122223333:root"
+                "AWS": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                }
               },
               "Action": "kms:*",
               "Resource": "*"
@@ -109,7 +111,9 @@
                   ],
                   "Resource": [
                     "arn:aws:bedrock:*::foundation-model/*",
-                    "arn:aws:bedrock:*:111122223333:inference-profile/*"
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*"
+                    }
                   ]
                 },
                 {
@@ -117,7 +121,9 @@
                   "Action": [
                     "bedrock:ApplyGuardrail"
                   ],
-                  "Resource": "arn:aws:bedrock:*:111122223333:guardrail/*"
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:guardrail/*"
+                  }
                 },
                 {
                   "Effect": "Allow",
