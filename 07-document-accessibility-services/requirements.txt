@@ -1,6 +1,6 @@
 # Document & Accessibility Services — runtime dependencies
 langgraph>=1.2.7
-langchain-core>=1.4.8
+langchain-core>=1.4.9
 streamlit>=1.58.0
 
 # LLM providers (install the one you use)
