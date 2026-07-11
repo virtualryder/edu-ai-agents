@@ -671,7 +671,8 @@ Before opening to users, verify every item:
 - [ ] Backup and disaster recovery tested (RTO/RPO documented)
 - [ ] Cost monitoring enabled (Bedrock inference is the largest variable cost)
 - [ ] Localhost callback URL replaced with your production domain
-- [ ] Egress CIDR restricted from `0.0.0.0/0` to your known endpoints
+- [ ] `AllowedEgressCidr` set (network.yaml — no default, you must choose) to your known endpoints, never `0.0.0.0/0`
+- [ ] `AllowedIngressCidr` set (demo-in-a-box.yaml — no default) to your office/VPN CIDR; use `0.0.0.0/0` only for an intentionally public demo
 
 ### Teardown
 

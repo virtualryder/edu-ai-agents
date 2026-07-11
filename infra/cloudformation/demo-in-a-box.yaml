@@ -126,6 +126,20 @@ Parameters:
       ACM certificate ARN. Required only if EnableHTTPS = true.
       Leave empty for HTTP-only deployments.
 
+  AllowedIngressCidr:
+    Type: String
+    # SECURITY: NO DEFAULT - the demo ALB is internet-facing, so the operator
+    # must consciously choose who can reach it instead of silently opening it to
+    # the world. Set to your office/VPN egress CIDR (e.g. 203.0.113.4/32) for a
+    # private demo, or explicitly to 0.0.0.0/0 to accept a fully public demo.
+    # The go-live checklist calls this out. There is deliberately no default.
+    AllowedPattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+    ConstraintDescription: Must be a valid IPv4 CIDR (e.g. 203.0.113.4/32, or 0.0.0.0/0 to accept public access).
+    Description: >
+      REQUIRED (no default). Source CIDR allowed to reach the demo ALB on
+      HTTP/HTTPS. Scope to your own network for a private demo; set 0.0.0.0/0
+      only if you intend the demo to be publicly reachable.
+
 # ---------------------------------------------------------------------------
 # Conditions
 # ---------------------------------------------------------------------------
@@ -228,15 +242,15 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
-          Description: HTTP from anywhere (demo only — restrict for production)
+          CidrIp: !Ref AllowedIngressCidr
+          Description: HTTP from AllowedIngressCidr (scope to your network; 0.0.0.0/0 only for public demos)
         - !If
           - UseHTTPS
           - IpProtocol: tcp
             FromPort: 443
             ToPort: 443
-            CidrIp: 0.0.0.0/0
-            Description: HTTPS from anywhere
+            CidrIp: !Ref AllowedIngressCidr
+            Description: HTTPS from AllowedIngressCidr (scope to your network; 0.0.0.0/0 only for public demos)
           - !Ref AWS::NoValue
       Tags:
         - Key: Name

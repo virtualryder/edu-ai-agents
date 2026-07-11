@@ -41,14 +41,17 @@ Parameters:
 
   AllowedEgressCidr:
     Type: String
-    Default: 0.0.0.0/0
-    # SECURITY: destination CIDR for the agent runtime SG HTTPS egress rule. The
-    # 0.0.0.0/0 default is permissive for reference. For production student-data
-    # workloads, restrict this and/or add an egress data perimeter (see the SG
-    # comment below).
+    # SECURITY: NO DEFAULT - destination CIDR for the agent runtime SG HTTPS
+    # egress rule is a REQUIRED, forced decision (mirrors WormRetentionDays in
+    # data.yaml). There is deliberately no 0.0.0.0/0 default: an open-internet
+    # egress default has no place in a student-data reference template. Set this
+    # to your known service/connector endpoints, and/or add an egress data
+    # perimeter (see the SG comment below). The go-live checklist calls this out.
+    AllowedPattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+    ConstraintDescription: Must be a valid IPv4 CIDR (e.g. 10.40.0.0/16 or 203.0.113.4/32).
     Description: >
-      Destination CIDR allowed for agent-runtime HTTPS (443) egress. Tighten for
-      production; high-sensitivity deployments should remove general internet
+      REQUIRED (no default). Destination CIDR allowed for agent-runtime HTTPS
+      (443) egress. High-sensitivity deployments should remove general internet
       egress entirely (private VPC endpoints + egress proxy / firewall).
 
 # ---------------------------------------------------------------------------
