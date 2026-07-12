@@ -41,6 +41,14 @@
 - **Cost-per-contact benchmark (cross-industry, education ~$6-$12/ticket):** self-service portals resolve at **$1-$4** vs. phone **$17-$25**, chat **$10-$16**, email **$8-$15**. — *InvGate / industry service-desk benchmarks (2024-25)* `[sector-press — industry estimate, flag on slide]` — https://blog.invgate.com/cost-per-ticket
 - **Multilingual demand:** the federal FSAIC offers service in English and Spanish only; institutional offices face the same multilingual gap. — *Federal Student Aid Help Center* `[gov]` — https://fsapartners.ed.gov/help-center/fsa-customer-service-center/service-centers-for-students/federal-student-aid-information-center-fsaic
 
+### The expectation gap (deck slide 3 — added July 2026)
+
+- **~86% of students expect 24/7 learning/support from an AI assistant.** — *Higher-ed GenAI stakeholder survey (2024)* `[research — survey]` — https://arxiv.org/pdf/2602.10802
+- **~72% of students study on a smartphone (mobile-first is the default).** — *Teen/Gen-Z higher-ed expectations research (AppsAnywhere, 2024)* `[research]` — https://www.appsanywhere.com/blog/new-research-reveals-us-teens-technology-use-learning-habits-and-higher-ed-expectations
+- **~37% of applicants expect an answer within a single day (65% within a week); response within 1 minute is ~391% more likely to convert.** — *Higher-ed speed-to-lead admissions research (ReWork/EducationDynamics, 2024-25)* `[sector-press — flag on slide]` — https://resources.rework.com/libraries/higher-education-growth/speed-to-lead-in-admissions
+- **Enrollment likelihood drops ~30% when an inquiry response is delayed beyond 48 hours.** — *NACAC research, cited in higher-ed speed-to-lead analyses (2024-25)* `[sector-press — flag on slide]` — https://higherleveleducation.com/speed-to-lead-education/
+- **Georgia State chatbot: 94% of students recommended continuing the service** (instant answers, any hour). — *AWS / GSU case material* `[vendor]` — supporting color for the expectation-gap narrative.
+
 ## 02 — Personalized Tutor & Study Companion
 
 - **HEADLINE:** In a Harvard physics RCT (194 students, fall 2023), **students using a purpose-built AI tutor learned MORE THAN TWICE as much, in less time, than peers in an active-learning class**, with higher engagement/motivation. — *Kestin et al. (2024)* `[gov/peer-reviewed — preprint + reputable coverage]`

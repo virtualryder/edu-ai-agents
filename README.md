@@ -51,29 +51,29 @@
 ## Capability maturity matrix
 
 ✅ = evidence in this repo (code + passing test, shipped template, or documented artifact) · ◻ = not done here / customer-engagement work.
-Derived from the authoritative [`MATURITY.yaml`](MATURITY.yaml). On **2026-07-10 a golden-path CloudFormation stack was deployed clean and evidenced** — a real Bedrock model invocation, a masked write to a DEPLOYED append-only audit table, runtime student-PII masking, plus a real Cognito JWT verified by the production path and an axe-core pass (see [`docs/evidence/`](docs/evidence/)). The repo's FULL `quickstart.yaml` nested stack has not yet been stood up end-to-end, so the deployed-on-AWS column stays conservative pending that.
+Derived from the authoritative [`MATURITY.yaml`](MATURITY.yaml). **✅ in the *Deployed on AWS* column reflects the Agent-01 pilot** — a real CloudFormation stack deployed to `CREATE_COMPLETE` and verified live on **2026-07-12** (live College Scorecard retrieval + real grounded Bedrock answer, deny-by-default + record-scope DENY, HITL PENDING_APPROVAL, runtime PII masking, append-only CMK-encrypted audit), then torn down — plus the 2026-07-10 Cognito-JWT and axe-core evidence (see [`docs/evidence/`](docs/evidence/)). The **full `quickstart.yaml` nested stack** (VPC/edge/AgentCore/real IdP/real SIS) is not yet stood up, so *Integration-tested on AWS* and *Production-ready* stay empty.
 
 | Capability | Designed | Implemented (offline/tested) | Deployed on AWS (validated) | Integration-tested on AWS | Production-ready | Owner (Repo/Customer) |
 |---|:--:|:--:|:--:|:--:|:--:|---|
-| Identity / authN | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (`verify_jwt` hardened + tested; real IdP federation: Customer) |
-| MCP / tool authorization gateway | ✅ | ✅ | ◻ | ◻ | ◻ | Repo |
-| Policy enforcement (deny-by-default) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (incl. fail-closed record-level scope) |
-| Human approval (SoD, single-use) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (signed, transaction-bound, single-use approvals + reviewer service, tested in-process) |
-| PII/PHI masking | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (student-PII masking, fail-closed, unit-tested) |
-| Audit (append-only + WORM) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (mechanism tested in-process; deployed end-to-end audit integration is open — Gap 6) |
-| Bedrock + Guardrails | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (demo-aware factory; no real-model invocation asserted in-repo) |
-| IaC deploy (golden path) | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (`make golden-path-01` + 9 templates parse/lint; clean-account stand-up: Customer) |
-| Live connectors | ✅ | ✅ | ◻ | ◻ | ◻ | Customer (fixtures + local live-HTTP stand-in for 01/04/05; real SIS/LMS is engagement work) |
+| Identity / authN | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (real Cognito JWT verified by the prod `verify_jwt` path on AWS 2026-07-10; real external IdP federation: Customer) |
+| MCP / tool authorization gateway | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (deny-by-default governed flow proven live in the Agent-01 pilot 2026-07-12) |
+| Policy enforcement (deny-by-default) | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (fail-closed record-level scope: cross-record DENY proven live 2026-07-12) |
+| Human approval (SoD, single-use) | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (signed single-use approvals + reviewer service; consequential PENDING_APPROVAL proven live 2026-07-12) |
+| PII/PHI masking | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (runtime student-PII masking proven live in the deployed Lambda 2026-07-10/12) |
+| Audit (append-only + WORM) | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (append-only masked write to a DEPLOYED CMK-encrypted DynamoDB audit table proven live 2026-07-10/12; S3 WORM export: Customer) |
+| Bedrock + Guardrails | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (real Claude invocation + guardrail proven live in the deployed Lambda 2026-07-10/12) |
+| IaC deploy (golden path) | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (Agent-01 pilot + golden-path CFN stacks deployed to CREATE_COMPLETE + verified live 2026-07-12; full quickstart nested stack: Customer) |
+| Live connectors | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (live College Scorecard retrieval proven in the deployed pilot 2026-07-12; real SIS/LMS: Customer) |
 | CI/CD | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (blocking cfn-lint + bandit/pip-audit/detect-secrets/checkov/SBOM; no cloud deploys in CI) / Customer |
 | Monitoring / alerts | ✅ | ✅ | ◻ | ◻ | ◻ | Customer (`observability.yaml` alarms + dashboard ship as templates, un-deployed-as-tested) |
-| DR / backup | ✅ | ◻ | ◻ | ◻ | ◻ | Customer |
-| Compliance evidence | ✅ | ✅ | ◻ | ◻ | ◻ | Repo (assurance docs + golden-transaction evidence bundle) / Customer (conformance + sign-off) |
+| DR / backup | ✅ | ✅ | ◻ | ◻ | ◻ | Customer (audit-table PITR enabled in the deployed pilot; multi-Region DR: Customer) |
+| Compliance evidence | ✅ | ✅ | ✅ | ◻ | ◻ | Repo (assurance docs + golden-transaction + pilot deploy evidence; axe-core WCAG pass) / Customer (conformance + sign-off) |
 
 Nothing in this repository is production-certified; see [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md) and [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md) for the full ownership breakdown (RACI).
 
 *Governance once, agents as add-ons: `platform_core` (`edu-agent-platform` 0.1.0) **implements the Aegis Governance Pattern (AGP) v1.0** — the shared governance contract defined in the Aegis platform repo (`docs/14-GOVERNANCE-PATTERN-VERSIONING.md`). Conformance is declared in `platform_core/edu_agent_platform/__init__.py` (`AEGIS_GOVERNANCE_PATTERN_VERSION`) and asserted by `platform_core/tests/test_agp_conformance.py`.*
 
-> **Validation update (2026-07-10).** A golden-path CloudFormation stack (`aws cloudformation create-stack` → `CREATE_COMPLETE`) proved, in a clean account and then torn down: a REAL model invocation (`us.anthropic.claude-sonnet-4-6`), a masked record in a DEPLOYED append-only DynamoDB audit table (conditional PutItem · CMK · PITR), RUNTIME student-PII masking (SSN/email/student-id redacted in the cloud), a real Cognito RS256 JWT verified by the production `verify_jwt` path (JWKS/iss/aud/exp), and an axe-core 4.12.1 pass (0 violations). Zero residual resources. Canonical offline total: **197 tests** (root platform+governance `pytest -q`: 174 passed, 1 skipped; agent suites add the remainder — see `MATURITY.yaml`). STILL OPEN: the full `quickstart.yaml` nested clean-account deploy, real SIS/LMS connectors, pen test, manual WCAG. Evidence: [`docs/evidence/clean-account-deploy.md`](docs/evidence/clean-account-deploy.md) · [`docs/evidence/identity-and-accessibility.md`](docs/evidence/identity-and-accessibility.md).
+> **Validation update (2026-07-12) — Agent 01 pilot deployed on AWS.** A real CloudFormation stack (`infra/cloudformation/pilot-concierge.template.json`) deployed the governed concierge and was verified across four scenarios live, then torn down: **public info** → ALLOW with **live College Scorecard** retrieval + a real grounded Bedrock answer (Michigan 15.6%% admit / $17,736 in-state); **own record** → ALLOW (synthetic SIS); **cross-record** → DENY (record-scope); **consequential send** → PENDING_APPROVAL (HITL). Append-only CMK-encrypted audit, runtime PII masking. Zero residual resources; under $1. Canonical offline suite: **200 passed, 1 skipped**. Evidence: [`docs/evidence/pilot-deploy.md`](docs/evidence/pilot-deploy.md) · runbook: [`runbooks/agent-deploy/01-PILOT.md`](runbooks/agent-deploy/01-PILOT.md). STILL OPEN: the full `quickstart.yaml` nested stack, real IdP federation, real SIS connector, pen test, manual WCAG.
 
 ### Hero pilot — Student & Family Concierge (lead, low-blast-radius)
 
@@ -141,7 +141,7 @@ Every agent includes a Streamlit demo app, fixture data, and tests that run with
 ### 3. Run the test suite
 
 ```bash
-make test                         # runs the governance + agent suites (canonical offline total: 197 tests — see MATURITY.yaml; +7 provisioner tests via `make test-provisioner`)
+make test                         # runs the governance + agent suites (canonical offline total: 201 tests — see MATURITY.yaml; +7 provisioner tests via `make test-provisioner`)
 ```
 
 ### 4. Validate CloudFormation templates
@@ -488,7 +488,7 @@ Editable source: the SVG in [`docs/diagrams/`](docs/diagrams/) (open in draw.io,
 
 ### Canonical deployment path
 
-**The intended canonical deploy path is the single-stack quickstart — [`infra/cloudformation/quickstart.yaml`](infra/cloudformation/quickstart.yaml) — but it has not yet completed a clean-account end-to-end deploy** (the documented open gap; the 2026 live validation exercised direct-API resource provisioning, not a stack stand-up). Until that gap closes, the **best-tested route is the Agent 01 golden-path runbook** — [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md) (`make golden-path-01`); [`infra/terraform/`](infra/terraform/) is a parity reference. What has and has not been proven live is recorded in [`evidence/CLEAN-ACCOUNT-ACCEPTANCE.md`](evidence/CLEAN-ACCOUNT-ACCEPTANCE.md).
+**The Agent-01 pilot stack — [`infra/cloudformation/pilot-concierge.template.json`](infra/cloudformation/pilot-concierge.template.json) — has been deployed to a clean account and verified live (2026-07-12)** via the [`runbooks/agent-deploy/01-PILOT.md`](runbooks/agent-deploy/01-PILOT.md) runbook: real College Scorecard retrieval + grounded Bedrock answer, record-scope DENY, HITL PENDING_APPROVAL, append-only audit — then torn down (evidence: [`docs/evidence/pilot-deploy.md`](docs/evidence/pilot-deploy.md)). The **full production topology** is the single-stack quickstart — [`infra/cloudformation/quickstart.yaml`](infra/cloudformation/quickstart.yaml) — which **has not yet completed a clean-account end-to-end deploy** (the documented open gap: VPC/edge/AgentCore/real IdP/real SIS). [`infra/terraform/`](infra/terraform/) is a parity reference.
 
 This guide walks you through deploying Agent 01 (Student & Family Concierge) into your own AWS account. No prior AWS experience is assumed — every step includes the exact commands to run. For the full copy-pasteable runbook, see [`runbooks/agent-deploy/01-GOLDEN-PATH.md`](runbooks/agent-deploy/01-GOLDEN-PATH.md).
 
@@ -789,7 +789,7 @@ edu-ai-agents/
 
 Every agent and platform component is positioned honestly against four levels. **The authoritative, per-agent / per-control breakdown is [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md); the table below is its summary.**
 
-**Current status (one line):** the shared platform controls are built and unit-tested, and the Agent 01 golden-path scaffolding is demonstrated locally (with Agents 01/04/05 exercising a live-HTTP connector path) — while a clean-account AWS deployment, real-model invocation, production identity, live connectors, accessibility conformance, and production sign-off remain customer/engagement work.
+**Current status (one line):** the shared platform controls are built and unit-tested (201 tests), and **Agent 01 has been deployed to AWS and verified live as a pilot** (real College Scorecard retrieval + grounded Bedrock answer, deny-by-default + record scope, HITL, append-only audit, PII masking; then torn down) — while a clean-account AWS deployment, real-model invocation, production identity, live connectors, accessibility conformance, and production sign-off remain customer/engagement work.
 
 | Level | Description | Where we are |
 |---|---|---|
@@ -804,7 +804,7 @@ Every agent and platform component is positioned honestly against four levels. *
 - **Governance in code:** Grounding verification, hash-pinned prompt registry (8 prompts), eval harness, fairness screens (disparate-impact + representativeness), red team scenarios, HITL gate tests, consequential bright-line test, WCAG pre-flight, control mappings
 - **Infrastructure:** 9 CloudFormation templates (network, security, data, edge, observability, quickstart + agent-specific), Terraform parity, AgentCore provisioner Lambda
 - **Security CI:** Bandit (SAST), pip-audit (CVEs), detect-secrets, checkov (IaC), SBOM generation, Dependabot
-- **Tests:** 67 passing (platform + governance + gateway-hardening + AgentCore-provisioner tests) — `python -m pytest platform_core/tests governance/tests infra/lambdas/agentcore_provisioner -q --ignore=governance/tests/test_hitl_gates.py`
+- **Tests:** 200 passing, 1 skipped (canonical root suite) — `PYTHONPATH=platform_core:. pytest -q`
 - **Field collateral:** 10 slide decks, battlecard, SOW template, ROI calculator, stakeholder briefings, FAQ
 
 ### Honest gaps (see [`docs/PRODUCTION-READINESS-ACTION-PLAN.md`](docs/PRODUCTION-READINESS-ACTION-PLAN.md))

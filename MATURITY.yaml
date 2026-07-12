@@ -6,12 +6,12 @@ repo: edu-ai-agents
 display_name: EDU AI Agents (K-12 & Higher Education)
 governance_pattern: "Aegis Governance Pattern (AGP) v1.0"
 positioning: reference-accelerator
-updated: 2026-07-10
+updated: 2026-07-12
 
 tests:
-  offline_total: 197                          # collected-test count; verified by tools/check_maturity.py (190 passed + 1 skipped, 2026-07-10, root pytest)
+  offline_total: 201                          # collected-test count; verified by tools/check_maturity.py (200 passed + 1 skipped, 2026-07-12, root pytest)
   reproduce: "PYTHONPATH=platform_core:. pytest -q   # canonical offline total (root collection)"
-  last_verified: 2026-07-10
+  last_verified: 2026-07-12
   note: "Root pytest is the canonical count (191 collected). `make test` runs a per-process subset and reports a different figure; cite this file."
 
 clean_account_deploy:
@@ -23,7 +23,10 @@ clean_account_deploy:
            table (conditional/append-only PutItem, CMK-encrypted, PITR), and RUNTIME PII masking
            (SSN/email/student-id redacted in the cloud). A real Cognito-issued JWT was verified by the
            production verify_jwt path (RS256 signature vs JWKS, iss/aud/exp), and an axe-core 4.12.1
-           scan passed (0 violations). All resources torn down; zero residual. STILL OPEN: the repo's
+           scan passed (0 violations). All resources torn down; zero residual. On 2026-07-12 the Agent-01 PILOT concierge stack was deployed and
+           verified across four governance scenarios live (public info with real College Scorecard
+           retrieval + real grounded Bedrock answer; own-record ALLOW; cross-record DENY; consequential
+           PENDING_APPROVAL) then torn down. STILL OPEN: the repo's
            FULL quickstart.yaml nested stack (VPC/edge/AgentCore/connectors/IdP federation) end-to-end,
            real SIS/LMS connectors, independent pen test, and full manual WCAG conformance."
   evidence:
@@ -31,6 +34,7 @@ clean_account_deploy:
     - docs/evidence/clean-account-deploy.md
     - docs/evidence/identity-and-accessibility.md
     - docs/evidence/axe-report.json
+    - docs/evidence/pilot-deploy.md
 
 hero_agent: 01-student-family-concierge
 maturity_scale: [documented, demonstrated, deployable, deploy-validated, production-ready]
@@ -39,8 +43,8 @@ agents:
   - id: 01-student-family-concierge
     name: Student & Family Concierge
     hero: true
-    maturity: demonstrated                    # NOT deploy-validated until clean-account CFN is run
-    clean_account_evidence: partial          # golden-path controls deploy-validated 2026-07-10 (real model, deployed audit, runtime PII masking, Cognito JWT, axe-core); full agent stack deploy still open
+    maturity: deploy-validated                # PILOT stack deployed + 4 governance scenarios verified LIVE 2026-07-12 (docs/evidence/pilot-deploy.md); full quickstart nested stack still open
+    clean_account_evidence: true             # 2026-07-12 pilot CFN stack: live College Scorecard retrieval + real Bedrock grounded answer (Michigan 15.6%% admit / $17,736) + record-scope DENY + HITL PENDING + append-only audit; torn down
     scored_eval: true                         # governance/evals/score_concierge
     connectors:
       - {kind: kb, source: "College Scorecard (public institution data)", tier: 3-live-reference, access: read-only, note: "public data, NOT a student record"}
