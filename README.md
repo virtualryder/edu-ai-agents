@@ -1,5 +1,33 @@
 # EDU AI Agent Suite
 
+> ### 🛡️ Part of the Aegis Governed-Agent Portfolio — one solution, five repositories
+> This repository is **1 of 5 that form a single, review-as-one solution**: the **Aegis** governance
+> platform (the control plane) plus four vertical agent packs. All five conform to one versioned
+> governance contract — **AGP v1.0** — and one deploy pattern, so a CIO / CISO reviews and approves them
+> **together** for pilot.
+>
+> | # | Repository | Role |
+> |--:|---|---|
+> | 1 | **`aegis-ai-governance-platform-aws`** | Governance **platform & pattern** (deny-by-default control plane) |
+> | 2 | **`hcls-ai-agents`** | **Life sciences** — pharma / biotech / CRO |
+> | 3 | **`slg-ai-agents`** | **State & local government** |
+> | 4 | **`healthcare_ai_agents`** (**HPP**) | **Healthcare payer / provider** |
+> | 5 | **`edu-ai-agents`** | **Education** — K-12 & higher-ed |
+>
+> **▶ You are here: `edu-ai-agents`.**
+>
+> **New to the portfolio?** Start in the **`aegis-ai-governance-platform-aws`** repo:
+> `PORTFOLIO-EXECUTIVE-SUMMARY.md` (10-minute front door) → `SA-DEPLOYMENT-RUNBOOK.md` (deploy the
+> platform + heroes in a new AWS account) → `PORTFOLIO-MATURITY-SCORECARD.md` (what's proven) →
+> `DO-NOT-CLAIM.md` (the honesty boundary).
+>
+> **Naming:** **`healthcare_ai_agents` = HPP** (payer / provider: claims, prior-auth, denials) and
+> **`hcls-ai-agents` = life sciences** (pharmacovigilance, clinical, regulatory) are **distinct
+> products**; the underscore-vs-hyphen naming is historical.
+>
+> ---
+
+
 > ⚠️ **Before you cite anything here:** read [**What we will *not* claim**](NOT-CLAIMS.md) — this is an independent reference accelerator that runs on AWS. It is **not** an AWS service, **not** AWS-supported, **not** an official AWS solution, and **not** a compliance certification. That page governs if any wording elsewhere reads stronger.
 
 > 📊 **Honest status, one source of truth:** per-agent maturity, clean-account evidence, connector tiers, and the test count live in machine-readable [`MATURITY.yaml`](MATURITY.yaml); the four connector-maturity terms are defined in [`docs/CONNECTOR-MATURITY.md`](docs/CONNECTOR-MATURITY.md). Prose defers to `MATURITY.yaml`; a portfolio drift-checker (`tools/check_maturity.py`) keeps them aligned.
