@@ -24,3 +24,9 @@ _refdeck_tmp/
 .claude/settings.local.json
 .aws-sam/
 _qa*/
+
+# deck build artifacts + editor lock/temp files (generators are tracked; outputs are not)
+decks/*.pdf
+_deckqa/
+.~lock.*#
+*.tmp

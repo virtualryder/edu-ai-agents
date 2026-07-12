@@ -1,0 +1,195 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "EDU Agent 01 Concierge PILOT stack: governed Lambda (College Scorecard retrieval + deny-by-default authz + record scope + HITL + synthetic SIS + Bedrock/Guardrail + PII masking + append-only audit). Delete me.",
+  "Parameters": {
+    "ModelId": {
+      "Type": "String",
+      "Default": "us.anthropic.claude-sonnet-4-6"
+    },
+    "GuardrailId": {
+      "Type": "String",
+      "Default": ""
+    },
+    "ScorecardKey": {
+      "Type": "String",
+      "Default": "DEMO_KEY",
+      "NoEcho": true
+    }
+  },
+  "Resources": {
+    "Cmk": {
+      "Type": "AWS::KMS::Key",
+      "Properties": {
+        "Description": "eduverify pilot CMK",
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "root",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "arn:aws:iam::864217980669:root"
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "AuditTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "audit_id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "audit_id",
+            "KeyType": "HASH"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "SSESpecification": {
+          "SSEEnabled": true,
+          "SSEType": "KMS",
+          "KMSMasterKeyId": {
+            "Ref": "Cmk"
+          }
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        }
+      }
+    },
+    "FnRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "pilot",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:*:*:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "AuditTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel"
+                  ],
+                  "Resource": [
+                    "arn:aws:bedrock:*::foundation-model/*",
+                    "arn:aws:bedrock:*:864217980669:inference-profile/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:ApplyGuardrail"
+                  ],
+                  "Resource": "arn:aws:bedrock:*:864217980669:guardrail/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Cmk",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Fn": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "eduverify-pilot-concierge",
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Timeout": 30,
+        "MemorySize": 256,
+        "Role": {
+          "Fn::GetAtt": [
+            "FnRole",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "AUDIT_TABLE": {
+              "Ref": "AuditTable"
+            },
+            "MODEL_ID": {
+              "Ref": "ModelId"
+            },
+            "GUARDRAIL_ID": {
+              "Ref": "GuardrailId"
+            },
+            "SCORECARD_KEY": {
+              "Ref": "ScorecardKey"
+            }
+          }
+        },
+        "Code": {
+          "ZipFile": "import json, os, re, time, hashlib, urllib.request, urllib.parse, boto3\nddb = boto3.client(\"dynamodb\"); br = boto3.client(\"bedrock-runtime\")\nT = os.environ[\"AUDIT_TABLE\"]; M = os.environ[\"MODEL_ID\"]; G = os.environ.get(\"GUARDRAIL_ID\", \"\")\nSK = os.environ.get(\"SCORECARD_KEY\", \"DEMO_KEY\")\nSB = os.environ.get(\"SCORECARD_BASE\", \"https://api.data.gov/ed/collegescorecard/v1\")\n# Synthetic SIS pilot data (production points sis.status at the real SIS connector under FERPA sign-off).\nSIS = {\"S-100\": {\"aid_status\": \"awaiting verification\", \"balance_due\": \"$0.00\"},\n       \"S-200\": {\"aid_status\": \"complete\", \"balance_due\": \"$150.00\"}}\nGRANTS = {\"STUDENT\": {\"kb.search\", \"sis.status\"},\n          \"COUNSELOR\": {\"kb.search\", \"sis.status\", \"comms.send\"}}\nCONSEQUENTIAL = {\"comms.send\"}\nPATS = [(re.compile(r\"\\b\\d{3}-\\d{2}-\\d{4}\\b\"), \"[SSN-REDACTED]\"),\n        (re.compile(r\"\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b\"), \"[EMAIL-REDACTED]\"),\n        (re.compile(r\"\\bS-\\d+\\b\"), \"[SID-REDACTED]\")]\ndef mask(t):\n    t = t or \"\"\n    for p, r in PATS:\n        t = p.sub(r, t)\n    return t\ndef scorecard(q):\n    params = {\"school.name\": q, \"fields\": \"school.name,school.city,school.state,latest.cost.tuition.in_state,latest.admissions.admission_rate.overall\", \"per_page\": 1, \"api_key\": SK}\n    u = SB + \"/schools?\" + urllib.parse.urlencode(params)\n    d = json.loads(urllib.request.urlopen(u, timeout=8).read())\n    rs = d.get(\"results\", [])\n    return rs[0] if rs else {}\ndef audit(**k):\n    aid = \"AUD-\" + hashlib.sha256((str(time.time()) + json.dumps(k, default=str)).encode()).hexdigest()[:20]\n    item = {\"audit_id\": {\"S\": aid}, \"ts\": {\"N\": str(int(time.time()))}}\n    for x, v in k.items():\n        item[x] = {\"S\": str(v)[:400]}\n    ddb.put_item(TableName=T, Item=item, ConditionExpression=\"attribute_not_exists(audit_id)\")\n    return aid\ndef handler(event, context):\n    claims = event.get(\"claims\") or {}\n    role = claims.get(\"role\", \"STUDENT\"); sub = claims.get(\"sub\", \"anon\"); own = claims.get(\"student_id\", \"\")\n    tool = event.get(\"tool\", \"kb.search\"); q = event.get(\"query\", \"\"); target = event.get(\"student_id\", own)\n    if tool not in GRANTS.get(role, set()):\n        return {\"decision\": \"DENY\", \"reason\": \"not entitled\", \"audit_id\": audit(decision=\"DENY\", user=sub, tool=tool, reason=\"not entitled\")}\n    if tool == \"sis.status\" and role == \"STUDENT\" and target != own:\n        return {\"decision\": \"DENY\", \"reason\": \"record scope: own record only\", \"audit_id\": audit(decision=\"DENY\", user=sub, tool=tool, reason=\"record-scope\")}\n    if tool in CONSEQUENTIAL and not event.get(\"approved\"):\n        return {\"decision\": \"PENDING_APPROVAL\", \"reason\": \"human approval required\", \"audit_id\": audit(decision=\"PENDING_APPROVAL\", user=sub, tool=tool)}\n    if tool == \"sis.status\":\n        rec = SIS.get(target, {})\n        return {\"decision\": \"ALLOW\", \"status\": rec, \"audit_id\": audit(decision=\"ALLOW\", user=sub, tool=tool, target=target, result=mask(json.dumps(rec)))}\n    sc = scorecard(q) if q else {}\n    prompt = \"Answer briefly and factually for a student or family. Question: \" + q + \" Context (College Scorecard): \" + json.dumps(sc)[:500]\n    kw = {\"modelId\": M, \"body\": json.dumps({\"anthropic_version\": \"bedrock-2023-05-31\", \"max_tokens\": 150, \"messages\": [{\"role\": \"user\", \"content\": prompt}]})}\n    if G:\n        kw[\"guardrailIdentifier\"] = G; kw[\"guardrailVersion\"] = \"DRAFT\"\n    r = json.loads(br.invoke_model(**kw)[\"body\"].read())\n    ans = (r.get(\"content\") or [{}])[0].get(\"text\", \"\")\n    return {\"decision\": \"ALLOW\", \"answer\": mask(ans), \"scorecard\": sc, \"source\": \"collegescorecard\",\n            \"audit_id\": audit(decision=\"ALLOW\", user=sub, tool=tool, query=mask(q), answer=mask(ans), source=\"collegescorecard\")}\n"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "FunctionName": {
+      "Value": {
+        "Ref": "Fn"
+      }
+    },
+    "AuditTableName": {
+      "Value": {
+        "Ref": "AuditTable"
+      }
+    }
+  }
+}
