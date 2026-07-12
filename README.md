@@ -789,7 +789,7 @@ edu-ai-agents/
 
 Every agent and platform component is positioned honestly against four levels. **The authoritative, per-agent / per-control breakdown is [`docs/STATUS-MANIFEST.md`](docs/STATUS-MANIFEST.md); the table below is its summary.**
 
-**Current status (one line):** the shared platform controls are built and unit-tested (200 tests), and **Agent 01 has been deployed to AWS and verified live as a pilot** (real College Scorecard retrieval + grounded Bedrock answer, deny-by-default + record scope, HITL, append-only audit, PII masking; then torn down) — while a clean-account AWS deployment, real-model invocation, production identity, live connectors, accessibility conformance, and production sign-off remain customer/engagement work.
+**Current status (one line):** the shared platform controls are built and unit-tested (201 tests), and **Agent 01 has been deployed to AWS and verified live as a pilot** (real College Scorecard retrieval + grounded Bedrock answer, deny-by-default + record scope, HITL, append-only audit, PII masking; then torn down) — while a clean-account AWS deployment, real-model invocation, production identity, live connectors, accessibility conformance, and production sign-off remain customer/engagement work.
 
 | Level | Description | Where we are |
 |---|---|---|
