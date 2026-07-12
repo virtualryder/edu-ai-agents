@@ -12,7 +12,7 @@ tests:
   offline_total: 201                          # collected-test count; verified by tools/check_maturity.py (200 passed + 1 skipped, 2026-07-12, root pytest)
   reproduce: "PYTHONPATH=platform_core:. pytest -q   # canonical offline total (root collection)"
   last_verified: 2026-07-12
-  note: "Root pytest is the canonical count (191 collected). `make test` runs a per-process subset and reports a different figure; cite this file."
+  note: "Canonical offline suite: 201 collected, 200 passed, 1 skipped — verified 2026-07-12 by `PYTHONPATH=platform_core:. pytest -q` (root); machine-checked by tools/check_maturity.py. `make test` runs a per-process subset and reports a different figure; MATURITY.yaml is the single source of truth."
 
 clean_account_deploy:
   status: partial                             # golden-path CFN stack deployed + evidenced 2026-07-10; full quickstart nested deploy still open
