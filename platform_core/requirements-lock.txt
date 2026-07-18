@@ -38,7 +38,7 @@ docstring-parser==0.18.0
     # via anthropic
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.50
+gitpython==3.1.52
     # via streamlit
 h11==0.16.0
     # via
