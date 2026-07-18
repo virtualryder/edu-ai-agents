@@ -98,7 +98,7 @@ langgraph-prebuilt==1.1.0
     # via langgraph
 langgraph-sdk==0.4.2
     # via langgraph
-langsmith==0.10.2
+langsmith==0.10.6
     # via langchain-core
 markupsafe==3.0.3
     # via jinja2
