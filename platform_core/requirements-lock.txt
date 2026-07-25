@@ -76,7 +76,7 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 langchain-anthropic==1.4.8
     # via -r /tmp/edu-req.in
-langchain-core==1.4.9
+langchain-core==1.5.1
     # via
     #   -r /tmp/edu-req.in
     #   langchain-anthropic
