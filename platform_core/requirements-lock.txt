@@ -121,7 +121,7 @@ packaging==26.2
     #   langchain-core
     #   langsmith
     #   streamlit
-pandas==3.0.3
+pandas==3.0.5
     # via streamlit
 pillow==12.3.0
     # via streamlit
